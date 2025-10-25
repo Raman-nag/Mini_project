@@ -11,6 +11,7 @@ import {
   WifiIcon,
   ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
+import ThemeToggle from '../common/ThemeToggle';
 
 const DashboardLayout = ({ children, userRole, userProfile, walletAddress, networkStatus }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -197,9 +198,9 @@ const DashboardLayout = ({ children, userRole, userProfile, walletAddress, netwo
       {/* Main content area */}
       <div className="flex flex-col w-0 flex-1 overflow-hidden">
         {/* Top header */}
-        <div className="relative z-10 flex-shrink-0 flex h-16 bg-white shadow">
+        <div className="relative z-10 flex-shrink-0 flex h-16 bg-white dark:bg-slate-800 shadow border-b border-slate-200 dark:border-slate-700">
           <button
-            className="px-4 border-r border-gray-200 text-gray-500 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 md:hidden"
+            className="px-4 border-r border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary-500 md:hidden"
             onClick={() => setSidebarOpen(true)}
           >
             <Bars3Icon className="h-6 w-6" />
@@ -208,9 +209,9 @@ const DashboardLayout = ({ children, userRole, userProfile, walletAddress, netwo
           <div className="flex-1 px-4 flex justify-between">
             <div className="flex-1 flex">
               <div className="w-full flex md:ml-0">
-                <div className="relative w-full text-gray-400 focus-within:text-gray-600">
+                <div className="relative w-full text-slate-400 dark:text-slate-500 focus-within:text-slate-600 dark:focus-within:text-slate-300">
                   <div className="flex items-center h-full">
-                    <span className="text-lg font-medium text-gray-900">
+                    <span className="text-lg font-medium text-slate-900 dark:text-slate-100">
                       Welcome back, {userProfile?.firstName || 'User'}
                     </span>
                   </div>
@@ -219,6 +220,11 @@ const DashboardLayout = ({ children, userRole, userProfile, walletAddress, netwo
             </div>
             
             <div className="ml-4 flex items-center md:ml-6">
+              {/* Theme Toggle */}
+              <div className="flex items-center mr-4">
+                <ThemeToggle variant="button" size="md" />
+              </div>
+
               {/* Network Status */}
               <div className="flex items-center mr-4">
                 <div className={`flex items-center ${getNetworkStatusColor()}`}>
