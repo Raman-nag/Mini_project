@@ -1,0 +1,94 @@
+Project File Structure:
+
+/EMR_DApp
+|-- /contracts
+|   |-- EHRRegistry.sol          # Solidity smart contract managing user roles, patient record creation, update, and access control with IPFS hash links.
+|   |-- Migrations.sol           # Deployment tracking contract for Truffle/Hardhat.
+|
+|-- /backend                     # Node.js + Express server
+|   |-- server.js                # Entry point configures middleware, routes, and DB connection
+|   |-- /controllers
+|   |   |-- ipfsController.js    # Handles IPFS multimedia upload/download via API keys
+|   |   |-- authController.js    # User registration, login, JWT authentication
+|   |   |-- ehrController.js     # Blockchain interaction for records creation, updates, access management
+|   |-- /config
+|   |   |-- db.js                # MongoDB connection setup using environment variables
+|   |-- /routes
+|   |   |-- ehrRoutes.js         # REST API for EHR functions: createRecord, updateRecord, getPatientRecords, grant/revoke access
+|   |   |-- ipfsRoutes.js        # Routes for IPFS upload and fetch
+|   |   |-- authRoutes.js        # Routes for user authentication
+|   |-- package.json
+|   |-- .env                    # Environment variables for IPFS API keys and MongoDB URI
+|
+|-- /client                      # React frontend
+|   |-- /public
+|   |-- /src
+|   |   |-- index.js
+|   |   |-- App.js
+|   |   |-- /components
+|   |   |   |-- Header.jsx
+|   |   |   |-- Dashboard.jsx        # Role-based dynamic dashboard
+|   |   |   |-- PatientRecordCard.jsx
+|   |   |   |-- IPFSFileUploader.jsx # Uploads multimedia files to IPFS
+|   |   |-- /pages
+|   |   |   |-- Login.jsx             # Wallet login and JWT auth
+|   |   |   |-- PatientView.jsx       # Patient dashboard viewing own records and access control
+|   |   |   |-- DoctorWorkflow.jsx    # Doctor dashboard for uploading and updating records
+|   |   |   |-- ResearcherView.jsx    # Researcher view for authorized data access
+|   |   |   |-- HospitalAdminView.jsx # Hospital admin panel for user registration and role management
+|   |   |-- /utils
+|   |   |   |-- web3.js               # Ethers.js/Web3.js integration for blockchain calls
+|   |   |   |-- constants.js          # Contract addresses and ABI imports
+|   |-- package.json
+|
+|-- /migrations
+|   |-- 1_deploy_contracts.js         # Deployment script
+
+Key Functions by File:
+
+/contracts/EHRRegistry.sol:
+- registerUser(address userAddress, uint8 role): Admin registers users with roles.
+- createRecord(address patient, string description, string ipfsHash): Doctor adds a new medical record linked with IPFS.
+- updateRecord(uint256 recordId, string newIpfsHash): Doctor updates an existing record.
+- getPatientRecords(address patientAddress): Returns all IPFS hashes for a patient.
+- grantAccess(address researcher): Patient authorizes researcher access.
+- revokeAccess(address researcher): Patient revokes researcher access.
+- isAuthorized(address user, address patient): Internal permission check.
+- getRecordDetails(uint256 recordId): Gets full metadata of a record.
+
+/backend/controllers/ipfsController.js:
+- uploadToIPFS(req, res): Uploads multimedia files to IPFS.
+- getFromIPFS(req, res): Fetches files from IPFS gateway.
+
+/backend/controllers/authController.js:
+- register(req, res): Registers users in MongoDB with wallet.
+- login(req, res): Authenticates users and issues JWT.
+- verifyJWT(req, res, next): Middleware to protect API routes.
+
+/backend/controllers/ehrController.js:
+- registerUserOnChain(req, res): Calls smart contract to register user.
+- createRecord(req, res): Calls smart contract to create medical record.
+- updateRecord(req, res): Updates medical record IPFS hash on chain.
+- getPatientRecords(req, res): Retrieves patient's records via blockchain.
+- grantAccess(req, res): Grants researcher permission.
+- revokeAccess(req, res): Revokes researcher permission.
+
+/backend/config/db.js:
+- connectDB(): Connects MongoDB with environment variables.
+
+/backend/routes/*:
+- ehrRoutes.js: EHR-related REST APIs.
+- ipfsRoutes.js: IPFS upload/download APIs.
+- authRoutes.js: Authentication APIs.
+
+/client/src/utils/web3.js:
+- connectWallet(): Connects to MetaMask wallet.
+- getProvider(): Returns ethers/web3 provider.
+- getContract(abi, address): Loads smart contract instance.
+
+/client/src/components/IPFSFileUploader.jsx:
+- handleFileChange(): Reads user file.
+- handleUpload(): Uploads file to backend IPFS endpoint.
+
+/client/src/pages/*:
+- Role-based pages for Patient, Doctor, Researcher, Hospital admin including dashboards, record views, and workflows.
