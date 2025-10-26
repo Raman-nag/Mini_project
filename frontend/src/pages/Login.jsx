@@ -38,8 +38,8 @@ const Login = () => {
         localStorage.setItem('userRole', formData.role);
         localStorage.setItem('userData', JSON.stringify(user));
         
-        // Navigate to appropriate dashboard
-        navigate(`/${formData.role}/dashboard`);
+  // Navigate to appropriate dashboard (route pattern: /<role>/dashboard)
+  navigate(`/${formData.role}/dashboard`);
       } else {
         setError('Invalid credentials. Please try again.');
       }

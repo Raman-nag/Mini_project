@@ -51,7 +51,7 @@
 
 /* Patient card */
 .patient-card {
-  @apply card cursor-pointer group;
+  @apply card cursor-pointer;
 }
 
 .patient-card:hover {
@@ -63,7 +63,12 @@
 }
 
 .patient-card .patient-name {
-  @apply font-semibold text-slate-900 dark:text-slate-100 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors;
+  @apply font-semibold text-slate-900 dark:text-slate-100 transition-colors;
+}
+
+/* Hover styles that previously relied on `group-hover` */
+.patient-card:hover .patient-name {
+  @apply text-primary-600 dark:text-primary-400;
 }
 
 .patient-card .patient-id {

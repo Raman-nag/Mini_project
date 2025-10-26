@@ -136,8 +136,8 @@ const Register = () => {
       localStorage.setItem('userRole', formData.role);
       localStorage.setItem('userData', JSON.stringify(userData));
       
-      // Navigate to appropriate dashboard
-      navigate(`/${formData.role}/dashboard`);
+  // Navigate to appropriate dashboard (route pattern: /<role>/dashboard)
+  navigate(`/${formData.role}/dashboard`);
     } catch (err) {
       setErrors({ general: 'Registration failed. Please try again.' });
     } finally {
