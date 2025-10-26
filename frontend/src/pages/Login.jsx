@@ -3,267 +3,290 @@ import { Link, useNavigate } from 'react-router-dom';
 import { 
   EyeIcon, 
   EyeSlashIcon, 
-  UserIcon, 
-  BuildingOfficeIcon, 
-  HeartIcon,
+  HeartIcon, 
+  ShieldCheckIcon,
   ArrowRightIcon,
   CheckCircleIcon
 } from '@heroicons/react/24/outline';
+import { mockUsers } from '../data/mockData';
 
 const Login = () => {
-  const [selectedRole, setSelectedRole] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+    role: 'patient'
+  });
   const [showPassword, setShowPassword] = useState(false);
-  const [isConnecting, setIsConnecting] = useState(false);
-  const [isConnected, setIsConnected] = useState(false);
-  const [walletAddress, setWalletAddress] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
   const navigate = useNavigate();
 
-  const roles = [
-    {
-      id: 'hospital',
-      name: 'Hospital',
-      icon: BuildingOfficeIcon,
-      description: 'Manage doctors and patients',
-      color: 'from-blue-500 to-blue-600',
-      bgColor: 'bg-blue-50',
-      borderColor: 'border-blue-200'
-    },
-    {
-      id: 'doctor',
-      name: 'Doctor',
-      icon: UserIcon,
-      description: 'Create and manage patient records',
-      color: 'from-green-500 to-green-600',
-      bgColor: 'bg-green-50',
-      borderColor: 'border-green-200'
-    },
-    {
-      id: 'patient',
-      name: 'Patient',
-      icon: HeartIcon,
-      description: 'Access your medical records',
-      color: 'from-purple-500 to-purple-600',
-      bgColor: 'bg-purple-50',
-      borderColor: 'border-purple-200'
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError('');
+
+    try {
+      // TODO: Replace with actual blockchain authentication
+      // This is mock authentication for demonstration
+      await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate API call
+      
+      // Mock authentication logic
+      const user = mockUsers[formData.role];
+      if (user && user.email === formData.email) {
+        // TODO: Store authentication token and user data
+        localStorage.setItem('userRole', formData.role);
+        localStorage.setItem('userData', JSON.stringify(user));
+        
+        // Navigate to appropriate dashboard
+        navigate(`/${formData.role}/dashboard`);
+      } else {
+        setError('Invalid credentials. Please try again.');
+      }
+    } catch (err) {
+      setError('An error occurred. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
+  };
+
+  const handleInputChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
+    });
+  };
+
+  const roleOptions = [
+    { value: 'patient', label: 'Patient', description: 'Access your medical records' },
+    { value: 'doctor', label: 'Doctor', description: 'Manage patient records' },
+    { value: 'hospital', label: 'Hospital', description: 'Administrative dashboard' }
   ];
 
-  const connectMetaMask = async () => {
-    setIsConnecting(true);
-    try {
-      if (typeof window.ethereum !== 'undefined') {
-        const accounts = await window.ethereum.request({
-          method: 'eth_requestAccounts'
-        });
-        setWalletAddress(accounts[0]);
-        setIsConnected(true);
-      } else {
-        alert('MetaMask is not installed. Please install MetaMask to continue.');
-      }
-    } catch (error) {
-      console.error('Error connecting to MetaMask:', error);
-      alert('Failed to connect to MetaMask. Please try again.');
-    } finally {
-      setIsConnecting(false);
-    }
-  };
-
-  const handleLogin = (e) => {
-    e.preventDefault();
-    if (!selectedRole) {
-      alert('Please select a role');
-      return;
-    }
-    if (!isConnected) {
-      alert('Please connect your MetaMask wallet');
-      return;
-    }
-    
-    // Navigate to appropriate dashboard
-    navigate(`/${selectedRole}-dashboard`);
-  };
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+      {/* Background Pattern */}
+      <div className="absolute inset-0 bg-grid-slate-100 dark:bg-grid-slate-800/25 [mask-image:linear-gradient(0deg,white,rgba(255,255,255,0.6))] dark:[mask-image:linear-gradient(0deg,rgba(255,255,255,0.1),rgba(255,255,255,0.5))]"></div>
+      
+      <div className="relative max-w-md w-full space-y-8">
         {/* Header */}
         <div className="text-center">
-          <h2 className="mt-6 text-3xl font-bold text-gray-900">
+          <div className="flex justify-center mb-6">
+            <div className="w-16 h-16 bg-gradient-to-br from-primary-500 to-primary-700 rounded-2xl flex items-center justify-center shadow-lg">
+              <HeartIcon className="w-8 h-8 text-white" />
+            </div>
+          </div>
+          <h2 className="text-3xl font-bold text-slate-900 dark:text-slate-100">
             Welcome Back
           </h2>
-          <p className="mt-2 text-sm text-gray-600">
-            Sign in to your account to continue
+          <p className="mt-2 text-slate-600 dark:text-slate-300">
+            Sign in to your Multimedia EHR account
           </p>
-        </div>
-
-        {/* Role Selection */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-gray-900">Select Your Role</h3>
-          <div className="grid grid-cols-1 gap-3">
-            {roles.map((role) => {
-              const IconComponent = role.icon;
-              return (
-                <button
-                  key={role.id}
-                  onClick={() => setSelectedRole(role.id)}
-                  className={`p-4 rounded-lg border-2 transition-all duration-200 ${
-                    selectedRole === role.id
-                      ? `${role.borderColor} ${role.bgColor} ring-2 ring-offset-2 ring-current`
-                      : 'border-gray-200 bg-white hover:border-gray-300'
-                  }`}
-                >
-                  <div className="flex items-center space-x-3">
-                    <div className={`p-2 rounded-lg bg-gradient-to-r ${role.color}`}>
-                      <IconComponent className="h-6 w-6 text-white" />
-                    </div>
-                    <div className="text-left">
-                      <div className="font-semibold text-gray-900">{role.name}</div>
-                      <div className="text-sm text-gray-600">{role.description}</div>
-                    </div>
-                    {selectedRole === role.id && (
-                      <CheckCircleIcon className="h-5 w-5 text-green-500 ml-auto" />
-                    )}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* MetaMask Connection */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-gray-900">Connect Wallet</h3>
-          {!isConnected ? (
-            <button
-              onClick={connectMetaMask}
-              disabled={isConnecting}
-              className="w-full flex items-center justify-center px-4 py-3 border border-transparent text-sm font-medium rounded-lg text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-            >
-              {isConnecting ? (
-                <div className="flex items-center">
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                  Connecting...
-                </div>
-              ) : (
-                <div className="flex items-center">
-                  <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                  </svg>
-                  Connect with MetaMask
-                </div>
-              )}
-            </button>
-          ) : (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <div className="flex items-center">
-                <CheckCircleIcon className="h-5 w-5 text-green-500 mr-2" />
-                <div>
-                  <div className="text-sm font-medium text-green-800">Wallet Connected</div>
-                  <div className="text-xs text-green-600 font-mono">
-                    {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Login Form */}
-        <form className="space-y-6" onSubmit={handleLogin}>
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-              Email Address
-            </label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              autoComplete="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-              placeholder="Enter your email"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-              Password
-            </label>
-            <div className="mt-1 relative">
-              <input
-                id="password"
-                name="password"
-                type={showPassword ? 'text' : 'password'}
-                autoComplete="current-password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="appearance-none relative block w-full px-3 py-2 pr-10 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                placeholder="Enter your password"
-              />
-              <button
-                type="button"
-                className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                onClick={() => setShowPassword(!showPassword)}
-              >
-                {showPassword ? (
-                  <EyeSlashIcon className="h-5 w-5 text-gray-400" />
-                ) : (
-                  <EyeIcon className="h-5 w-5 text-gray-400" />
-                )}
-              </button>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <input
-                id="remember-me"
-                name="remember-me"
-                type="checkbox"
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-              />
-              <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
-                Remember me
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-8 border border-slate-200 dark:border-slate-700">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Role Selection */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">
+                I am a...
               </label>
+              <div className="grid grid-cols-1 gap-3">
+                {roleOptions.map((role) => (
+                  <label
+                    key={role.value}
+                    className={`relative flex items-center p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 ${
+                      formData.role === role.value
+                        ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
+                        : 'border-slate-200 dark:border-slate-600 hover:border-slate-300 dark:hover:border-slate-500'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="role"
+                      value={role.value}
+                      checked={formData.role === role.value}
+                      onChange={handleInputChange}
+                      className="sr-only"
+                    />
+                    <div className="flex items-center space-x-3">
+                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                        formData.role === role.value
+                          ? 'border-primary-500 bg-primary-500'
+                          : 'border-slate-300 dark:border-slate-600'
+                      }`}>
+                        {formData.role === role.value && (
+                          <div className="w-2 h-2 bg-white rounded-full"></div>
+                        )}
+                      </div>
+                      <div>
+                        <div className="font-medium text-slate-900 dark:text-slate-100">
+                          {role.label}
+                        </div>
+                        <div className="text-sm text-slate-500 dark:text-slate-400">
+                          {role.description}
+                        </div>
+                      </div>
+                    </div>
+                  </label>
+                ))}
+              </div>
             </div>
 
-            <div className="text-sm">
-              <a href="#" className="font-medium text-blue-600 hover:text-blue-500">
-                Forgot your password?
+            {/* Email Input */}
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                Email Address
+              </label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                required
+                value={formData.email}
+                onChange={handleInputChange}
+                className="w-full px-4 py-3 border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+                placeholder="Enter your email"
+              />
+            </div>
+
+            {/* Password Input */}
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                Password
+              </label>
+              <div className="relative">
+                <input
+                  id="password"
+                  name="password"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
+                  required
+                  value={formData.password}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 pr-12 border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+                  placeholder="Enter your password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                >
+                  {showPassword ? (
+                    <EyeSlashIcon className="w-5 h-5" />
+                  ) : (
+                    <EyeIcon className="w-5 h-5" />
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Error Message */}
+            {error && (
+              <div className="bg-error-50 dark:bg-error-900/20 border border-error-200 dark:border-error-800 rounded-xl p-4">
+                <div className="flex items-center">
+                  <div className="w-5 h-5 text-error-500 mr-3">
+                    <svg fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <p className="text-sm text-error-700 dark:text-error-300">{error}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Remember Me & Forgot Password */}
+            <div className="flex items-center justify-between">
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 text-primary-600 bg-slate-100 dark:bg-slate-700 border-slate-300 dark:border-slate-600 rounded focus:ring-primary-500 focus:ring-2"
+                />
+                <span className="ml-2 text-sm text-slate-600 dark:text-slate-300">
+                  Remember me
+                </span>
+              </label>
+              <a
+                href="#"
+                className="text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors"
+              >
+                Forgot password?
               </a>
             </div>
-          </div>
 
-          <div>
+            {/* Submit Button */}
             <button
               type="submit"
-              disabled={!selectedRole || !isConnected}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+              disabled={isLoading}
+              className="w-full flex justify-center items-center px-4 py-3 bg-gradient-to-r from-primary-600 to-primary-700 text-white font-semibold rounded-xl hover:from-primary-700 hover:to-primary-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
             >
-              <span className="absolute left-0 inset-y-0 flex items-center pl-3">
-                <ArrowRightIcon className="h-5 w-5 text-blue-500 group-hover:text-blue-400" />
-              </span>
-              Sign In
+              {isLoading ? (
+                <div className="flex items-center">
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                  Signing in...
+                </div>
+              ) : (
+                <div className="flex items-center">
+                  Sign In
+                  <ArrowRightIcon className="w-5 h-5 ml-2" />
+                </div>
+              )}
             </button>
-          </div>
-        </form>
+          </form>
 
-        {/* Registration Link */}
+          {/* Demo Credentials */}
+          <div className="mt-6 p-4 bg-slate-50 dark:bg-slate-700/50 rounded-xl">
+            <h4 className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+              Demo Credentials:
+            </h4>
+            <div className="space-y-1 text-xs text-slate-600 dark:text-slate-400">
+              <div>Patient: john.doe@email.com</div>
+              <div>Doctor: sarah.johnson@citygeneral.com</div>
+              <div>Hospital: admin@citygeneral.com</div>
+              <div className="text-slate-500 dark:text-slate-500">Password: demo123</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Sign Up Link */}
         <div className="text-center">
-          <p className="text-sm text-gray-600">
+          <p className="text-slate-600 dark:text-slate-300">
             Don't have an account?{' '}
-            <Link to="/register" className="font-medium text-blue-600 hover:text-blue-500">
-              Create one here
+            <Link
+              to="/register"
+              className="font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors"
+            >
+              Sign up for free
             </Link>
           </p>
+        </div>
+
+        {/* Security Features */}
+        <div className="bg-white dark:bg-slate-800 rounded-xl p-6 border border-slate-200 dark:border-slate-700">
+          <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-4 flex items-center">
+            <ShieldCheckIcon className="w-4 h-4 mr-2 text-green-500" />
+            Your Security is Our Priority
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs text-slate-600 dark:text-slate-400">
+            <div className="flex items-center">
+              <CheckCircleIcon className="w-3 h-3 text-green-500 mr-2" />
+              End-to-End Encryption
+            </div>
+            <div className="flex items-center">
+              <CheckCircleIcon className="w-3 h-3 text-green-500 mr-2" />
+              HIPAA Compliant
+            </div>
+            <div className="flex items-center">
+              <CheckCircleIcon className="w-3 h-3 text-green-500 mr-2" />
+              Blockchain Secured
+            </div>
+            <div className="flex items-center">
+              <CheckCircleIcon className="w-3 h-3 text-green-500 mr-2" />
+              Two-Factor Auth
+            </div>
+          </div>
         </div>
       </div>
     </div>
