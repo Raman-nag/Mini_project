@@ -14,6 +14,7 @@ import {
   CheckCircleIcon,
   ClockIcon
 } from '@heroicons/react/24/outline';
+import DashboardLayout from '../components/layout/DashboardLayout';
 import { mockUsers, mockMedicalRecords, mockNotifications, mockStats } from '../data/mockData';
 
 const PatientDashboard = () => {
