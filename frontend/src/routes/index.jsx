@@ -4,6 +4,8 @@ import { ThemeProvider } from '../contexts/ThemeContext';
 import { AuthProvider } from '../contexts/AuthContext';
 import { Web3Provider } from '../contexts/Web3Context';
 import { IPFSProvider } from '../contexts/IPFSContext';
+import { ToastProvider } from '../contexts/ToastContext';
+import ErrorBoundary from '../components/common/ErrorBoundary';
 
 // Layouts
 import AuthLayout from '../components/layout/AuthLayout';
@@ -33,12 +35,14 @@ const RouteWrapper = ({ children, showSkeleton = false }) => (
 // Main App Router
 const AppRouter = () => {
   return (
-    <ThemeProvider>
-      <Web3Provider>
-        <IPFSProvider>
-          <AuthProvider>
-            <div className="min-h-screen bg-slate-50 dark:bg-slate-900 transition-colors duration-300">
-              <Routes>
+    <ErrorBoundary>
+      <ThemeProvider>
+        <Web3Provider>
+          <IPFSProvider>
+            <ToastProvider>
+              <AuthProvider>
+                <div className="min-h-screen bg-slate-50 dark:bg-slate-900 transition-colors duration-300">
+                  <Routes>
                 {/* Public Routes */}
                 <Route 
                   path="/" 
@@ -121,12 +125,14 @@ const AppRouter = () => {
                     </PublicLayout>
                   } 
                 />
-              </Routes>
-            </div>
-          </AuthProvider>
-        </IPFSProvider>
-      </Web3Provider>
-    </ThemeProvider>
+                              </Routes>
+                </div>
+              </AuthProvider>
+            </ToastProvider>
+          </IPFSProvider>
+        </Web3Provider>
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 };
 
