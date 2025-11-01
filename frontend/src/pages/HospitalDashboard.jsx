@@ -60,7 +60,7 @@ const HospitalDashboard = () => {
     {
       id: 1,
       type: 'doctor_added',
-      message: 'Dr. Sarah Johnson joined the hospital',
+      message: 'Dr. Vijay Johnson joined the hospital',
       time: '2 hours ago',
       icon: UserGroupIcon,
       color: 'text-blue-500'
@@ -68,8 +68,8 @@ const HospitalDashboard = () => {
     {
       id: 2,
       type: 'patient_record',
-      message: 'New patient record created for John Doe',
-      time: '4 hours ago',
+      message: 'New patient record created for Raman',
+      time: '4 days ago',
       icon: DocumentTextIcon,
       color: 'text-green-500'
     },
@@ -77,7 +77,7 @@ const HospitalDashboard = () => {
       id: 3,
       type: 'system_update',
       message: 'System maintenance completed successfully',
-      time: '1 day ago',
+      time: '1 week ago',
       icon: ChartBarIcon,
       color: 'text-purple-500'
     }

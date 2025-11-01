@@ -58,48 +58,48 @@ const DoctorDashboard = () => {
     }
   ];
 
-  const upcomingAppointments = [
-    {
-      id: 1,
-      patient: 'John Doe',
-      time: '9:00 AM',
-      type: 'Follow-up',
-      status: 'confirmed'
-    },
-    {
-      id: 2,
-      patient: 'Jane Smith',
-      time: '10:30 AM',
-      type: 'Consultation',
-      status: 'confirmed'
-    },
-    {
-      id: 3,
-      patient: 'Mike Johnson',
-      time: '2:00 PM',
-      type: 'Check-up',
-      status: 'pending'
-    }
-  ];
+  // const upcomingAppointments = [
+  //   {
+  //     id: 1,
+  //     patient: 'John Doe',
+  //     time: '9:00 AM',
+  //     type: 'Follow-up',
+  //     status: 'confirmed'
+  //   },
+  //   {
+  //     id: 2,
+  //     patient: 'Jane Smith',
+  //     time: '10:30 AM',
+  //     type: 'Consultation',
+  //     status: 'confirmed'
+  //   },
+  //   {
+  //     id: 3,
+  //     patient: 'Mike Johnson',
+  //     time: '2:00 PM',
+  //     type: 'Check-up',
+  //     status: 'pending'
+  //   }
+  // ];
 
   const recentRecords = [
     {
       id: 1,
-      patient: 'Alice Brown',
-      date: '2024-01-15',
+      patient: 'Raman Nag N',
+      date: '25-10-2025',
       type: 'Cardiology Consultation',
       status: 'completed'
     },
     {
       id: 2,
-      patient: 'Bob Wilson',
-      date: '2024-01-14',
+      patient: 'Sai venkatesh',
+      date: '26-10-2025',
       type: 'Follow-up Visit',
       status: 'completed'
     },
     {
       id: 3,
-      patient: 'Carol Davis',
+      patient: 'Sharan',
       date: '2024-01-13',
       type: 'Initial Consultation',
       status: 'pending'
@@ -194,8 +194,8 @@ const DoctorDashboard = () => {
             </div>
           </div>
 
-          {/* Today's Appointments */}
-          <div className="bg-white rounded-lg shadow">
+          {/* Today's Appointments for final demo */}
+          {/* <div className="bg-white rounded-lg shadow">
             <div className="px-6 py-4 border-b border-gray-200">
               <h2 className="text-lg font-semibold text-gray-900">Today's Appointments</h2>
             </div>
@@ -232,7 +232,7 @@ const DoctorDashboard = () => {
                 </div>
               )}
             </div>
-          </div>
+          </div> */}
         </div>
 
         {/* Recent Records */}

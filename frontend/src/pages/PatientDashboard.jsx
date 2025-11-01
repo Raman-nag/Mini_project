@@ -83,27 +83,27 @@ const PatientDashboard = () => {
   const recentRecords = [
     {
       id: 1,
-      doctor: 'Dr. Sarah Johnson',
-      date: '2024-01-15',
+      doctor: 'Dr. Ravindra',
+      date: '03-11-2025',
       type: 'Cardiology Consultation',
       status: 'completed',
-      hospital: 'City General Hospital'
+      hospital: 'Tumkur City General Hospital'
     },
     {
       id: 2,
-      doctor: 'Dr. Mike Wilson',
-      date: '2024-01-10',
+      doctor: 'Dr. Sushmita',
+      date: '27-10-2025',
       type: 'General Check-up',
       status: 'completed',
-      hospital: 'City General Hospital'
+      hospital: 'Aruna Hospital'
     },
     {
       id: 3,
-      doctor: 'Dr. Lisa Brown',
-      date: '2024-01-05',
+      doctor: 'Dr. Mukta',
+      date: '01-11-2025',
       type: 'Dermatology Visit',
       status: 'pending',
-      hospital: 'Skin Care Clinic'
+      hospital: 'Prahlad Skin Care Clinic'
     }
   ];
 
@@ -111,34 +111,34 @@ const PatientDashboard = () => {
     {
       id: 1,
       medication: 'Lisinopril 10mg',
-      doctor: 'Dr. Sarah Johnson',
-      startDate: '2024-01-01',
-      endDate: '2024-02-01',
-      status: 'active'
+      doctor: 'Dr. Ravindra',
+      startDate: '03-11-2025',
+      endDate: '06-11-2025',
+      status: 'expiring'
     },
     {
       id: 2,
       medication: 'Metformin 500mg',
-      doctor: 'Dr. Mike Wilson',
-      startDate: '2023-12-15',
-      endDate: '2024-01-15',
-      status: 'expiring'
+      doctor: 'Dr. SUshmita',
+      startDate: '27-10-2025',
+      endDate: '09-11-2025',
+      status: 'active'
     }
   ];
 
   const accessRequests = [
     {
       id: 1,
-      provider: 'City General Hospital',
-      requestedBy: 'Dr. Sarah Johnson',
-      date: '2024-01-14',
+      provider: 'Narayana Eye care center',
+      requestedBy: 'Dr. Sharath',
+      date: '31-102025',
       status: 'pending'
     },
     {
       id: 2,
-      provider: 'Emergency Services',
-      requestedBy: 'Emergency Team',
-      date: '2024-01-12',
+      provider: 'Mysore govt hospital',
+      requestedBy: 'Dr.Gunavantha',
+      date: '22-10-2025',
       status: 'granted'
     }
   ];
