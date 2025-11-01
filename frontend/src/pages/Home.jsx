@@ -17,36 +17,36 @@ import {
 const Home = () => {
   const [currentTestimonial, setCurrentTestimonial] = useState(0);
 
-  const features = [
+   const features = [
     {
       icon: ShieldCheckIcon,
       title: 'Blockchain Security',
       description: 'Your medical data is secured using advanced blockchain technology with end-to-end encryption.',
       // TODO: Integrate with actual blockchain security metrics
-      highlight: '99.9% Uptime'
+      // highlight: '99.9% Uptime'
     },
     {
       icon: LockClosedIcon,
       title: 'HIPAA Compliant',
       description: 'Fully compliant with healthcare regulations and privacy standards.',
       // TODO: Add compliance verification from blockchain
-      highlight: 'Fully Certified'
+      // highlight: 'Fully Certified'
     },
     {
       icon: CloudIcon,
       title: 'IPFS Storage',
       description: 'Decentralized storage ensures your data is always accessible and never lost.',
       // TODO: Integrate with IPFS storage metrics
-      highlight: 'Decentralized'
+      // highlight: 'Decentralized'
     },
     {
       icon: ChartBarIcon,
       title: 'Real-time Analytics',
       description: 'Comprehensive analytics and insights for better healthcare decisions.',
       // TODO: Add real-time data from blockchain
-      highlight: 'Live Data'
+      // highlight: 'Live Data'
     }
-  ];
+   ];
 
   const testimonials = [
     {
@@ -135,7 +135,7 @@ const Home = () => {
               </div>
 
               {/* Trust Indicators */}
-              <div className="flex items-center space-x-8 pt-8">
+              {/* <div className="flex items-center space-x-8 pt-8">
                 <div className="flex items-center space-x-2">
                   <CheckCircleIcon className="w-5 h-5 text-green-500" />
                   <span className="text-sm text-slate-600 dark:text-slate-300">HIPAA Compliant</span>
@@ -148,7 +148,7 @@ const Home = () => {
                   <CheckCircleIcon className="w-5 h-5 text-green-500" />
                   <span className="text-sm text-slate-600 dark:text-slate-300">Open Source</span>
                 </div>
-              </div>
+              </div> */}
             </div>
 
             {/* Right Column - Hero Visual */}
@@ -166,7 +166,7 @@ const Home = () => {
                         <p className="text-sm text-slate-500 dark:text-slate-400">Dashboard</p>
                       </div>
                     </div>
-                    <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                    {/* <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div> */}
                   </div>
 
                   {/* Stats Grid */}
@@ -189,7 +189,7 @@ const Home = () => {
                       </div>
                       <div className="flex items-center space-x-3 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                         <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                        <span className="text-sm text-slate-700 dark:text-slate-300">Access granted to Dr. Smith</span>
+                        <span className="text-sm text-slate-700 dark:text-slate-300">Access granted to Dr. Ramesh</span>
                       </div>
                     </div>
                   </div>
