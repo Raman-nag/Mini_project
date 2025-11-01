@@ -104,14 +104,14 @@ const NotFound = () => {
                 href="mailto:support@multimediaehr.com"
                 className="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors"
               >
-                support@multimediaehr.com
+                raman.nag.n@gmail.com
               </a>
               <span className="hidden sm:inline text-slate-400 dark:text-slate-500">•</span>
               <a
                 href="tel:+1-555-HELP"
                 className="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors"
               >
-                +1 (555) HELP
+                +91 7411 978 258 HELP
               </a>
             </div>
           </div>
@@ -120,7 +120,7 @@ const NotFound = () => {
         {/* Footer */}
         <div className="mt-12 text-center">
           <p className="text-sm text-slate-500 dark:text-slate-400">
-            © 2024 Multimedia EHR. All rights reserved.
+            © 2025 Multimedia EHR. All rights reserved.
           </p>
         </div>
       </div>
