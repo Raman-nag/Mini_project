@@ -1,8 +1,12 @@
+const fs = require('fs');
+const path = require('path');
 const hre = require('hardhat');
 
 async function main() {
   const [deployer] = await hre.ethers.getSigners();
   console.log('Deploying contracts with account:', deployer.address);
+  
+  const deployments = {};
 
   // 1. Deploy AccessControl
   const AccessControl = await hre.ethers.getContractFactory('AccessControl');
