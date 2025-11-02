@@ -24,37 +24,37 @@ const DashboardLayout = ({ children, userRole, userProfile, walletAddress, netwo
   // Role-specific navigation items
   const getNavigationItems = () => {
     const baseItems = [
-      { name: 'Dashboard', href: `/${userRole}-dashboard`, icon: 'HomeIcon' },
+      { name: 'Dashboard', href: `/${userRole}/dashboard`, icon: 'HomeIcon' },
     ];
 
     switch (userRole) {
       case 'hospital':
         return [
           ...baseItems,
-          { name: 'Doctors', href: '/hospital-doctors', icon: 'UserGroupIcon' },
-          { name: 'Patients', href: '/hospital-patients', icon: 'HeartIcon' },
-          { name: 'Records', href: '/hospital-records', icon: 'DocumentTextIcon' },
-          { name: 'Analytics', href: '/hospital-analytics', icon: 'ChartBarIcon' },
-          { name: 'Settings', href: '/hospital-settings', icon: 'Cog6ToothIcon' }
+          { name: 'Doctors', href: '/hospital/doctors', icon: 'UserGroupIcon' },
+          { name: 'Patients', href: '/hospital/patients', icon: 'HeartIcon' },
+          { name: 'Records', href: '/hospital/records', icon: 'DocumentTextIcon' },
+          { name: 'Analytics', href: '/hospital/analytics', icon: 'ChartBarIcon' },
+          { name: 'Settings', href: '/hospital/settings', icon: 'Cog6ToothIcon' }
         ];
       case 'doctor':
         return [
           ...baseItems,
-          { name: 'My Patients', href: '/doctor-patients', icon: 'HeartIcon' },
-          { name: 'Create Record', href: '/doctor-create-record', icon: 'PlusIcon' },
-          { name: 'Records', href: '/doctor-records', icon: 'DocumentTextIcon' },
-          { name: 'Prescriptions', href: '/doctor-prescriptions', icon: 'ClipboardDocumentListIcon' },
-          { name: 'Schedule', href: '/doctor-schedule', icon: 'CalendarIcon' },
-          { name: 'Settings', href: '/doctor-settings', icon: 'Cog6ToothIcon' }
+          { name: 'My Patients', href: '/doctor/patients', icon: 'HeartIcon' },
+          { name: 'Create Record', href: '/doctor/create-record', icon: 'PlusIcon' },
+          { name: 'Records', href: '/doctor/records', icon: 'DocumentTextIcon' },
+          { name: 'Prescriptions', href: '/doctor/prescriptions', icon: 'ClipboardDocumentListIcon' },
+          { name: 'Schedule', href: '/doctor/schedule', icon: 'CalendarIcon' },
+          { name: 'Settings', href: '/doctor/settings', icon: 'Cog6ToothIcon' }
         ];
       case 'patient':
         return [
           ...baseItems,
-          { name: 'Medical History', href: '/patient-history', icon: 'DocumentTextIcon' },
-          { name: 'Prescriptions', href: '/patient-prescriptions', icon: 'ClipboardDocumentListIcon' },
-          { name: 'Grant Access', href: '/patient-grant-access', icon: 'KeyIcon' },
-          { name: 'Appointments', href: '/patient-appointments', icon: 'CalendarIcon' },
-          { name: 'Settings', href: '/patient-settings', icon: 'Cog6ToothIcon' }
+          { name: 'Medical History', href: '/patient/history', icon: 'DocumentTextIcon' },
+          { name: 'Prescriptions', href: '/patient/prescriptions', icon: 'ClipboardDocumentListIcon' },
+          { name: 'Grant Access', href: '/patient/grant-access', icon: 'KeyIcon' },
+          { name: 'Appointments', href: '/patient/appointments', icon: 'CalendarIcon' },
+          { name: 'Settings', href: '/patient/settings', icon: 'Cog6ToothIcon' }
         ];
       default:
         return baseItems;
@@ -318,7 +318,7 @@ const DashboardLayout = ({ children, userRole, userProfile, walletAddress, netwo
                   <div className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none">
                     <div className="py-1">
                       <Link
-                        to={`/${userRole}-settings`}
+                        to={`/${userRole}/settings`}
                         className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                       >
                         <Cog6ToothIcon className="mr-3 h-4 w-4" />
