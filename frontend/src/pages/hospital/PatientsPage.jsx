@@ -4,7 +4,7 @@ import PatientList from '../../components/hospital/PatientList';
 
 const PatientsPage = () => {
   return (
-    <DashboardLayout>
+    <DashboardLayout userRole="hospital">
       <div className="p-6">
         <h1 className="text-2xl font-bold mb-6">Patient Management</h1>
         <PatientList />

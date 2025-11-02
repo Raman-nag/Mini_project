@@ -22,6 +22,12 @@ const PatientList = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState(null);
 
+  useEffect(() => {
+    // Set initial mock data
+    setPatients(mockPatients);
+    setFilteredPatients(mockPatients);
+  }, []);
+
   // Mock data - replace with actual API calls
   const mockPatients = [
     {
@@ -239,7 +245,7 @@ const PatientList = () => {
     <div className="space-y-6">
       {/* Search and Filters */}
       <Card>
-        <Card.Content>
+        <Card.Body>
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
             <div className="flex-1 max-w-md">
               <SearchBar
@@ -302,7 +308,7 @@ const PatientList = () => {
               </div>
             </div>
           )}
-        </Card.Content>
+        </Card.Body>
       </Card>
 
       {/* Patients Table */}
@@ -318,7 +324,7 @@ const PatientList = () => {
           </div>
         </Card.Header>
         
-        <Card.Content>
+        <Card.Body>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
               <thead className="bg-gray-50 dark:bg-gray-800">
@@ -426,7 +432,7 @@ const PatientList = () => {
               </div>
             )}
           </div>
-        </Card.Content>
+        </Card.Body>
       </Card>
 
       {/* Patient Details Modal */}
