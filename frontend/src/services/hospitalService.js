@@ -1,4 +1,6 @@
 import { mockDoctors, mockPatients, mockHospitals } from '../data/mockData';
+import { getHospitalContract } from '../utils/contract';
+import { sendTx } from '../utils/web3';
 
 /**
  * Hospital Service
@@ -197,3 +199,24 @@ class HospitalService {
 
 // Export singleton instance
 export default new HospitalService();
+
+// Blockchain-backed functions (named exports) — keep mocks above for compatibility
+export const registerDoctor = async (doctorData) => {
+  const contract = await getHospitalContract();
+  const receipt = await sendTx(
+    contract.addDoctor(
+      doctorData.address,
+      doctorData.name,
+      doctorData.specialization,
+      doctorData.licenseNumber
+    )
+  );
+  return receipt;
+};
+
+export const getDoctors = async () => {
+  const contract = await getHospitalContract();
+  const doctors = await contract.getHospitalDoctors();
+  return doctors;
+};
+

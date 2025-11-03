@@ -1,4 +1,6 @@
 import { mockMedicalRecords, mockPrescriptions, mockPatients } from '../data/mockData';
+import { getPatientContract } from '../utils/contract';
+import { sendTx } from '../utils/web3';
 
 /**
  * Patient Service
@@ -246,3 +248,29 @@ class PatientService {
 
 // Export singleton instance
 export default new PatientService();
+
+// Blockchain-backed functions (named exports)
+export const grantAccessOnChain = async (address, permissions = ['read']) => {
+  const contract = await getPatientContract();
+  const receipt = await sendTx(contract.grantAccess(address, permissions));
+  return receipt;
+};
+
+export const revokeAccessOnChain = async (address) => {
+  const contract = await getPatientContract();
+  const receipt = await sendTx(contract.revokeAccess(address));
+  return receipt;
+};
+
+export const getMyRecordsOnChain = async (patientAddress) => {
+  const contract = await getPatientContract();
+  const records = await contract.getMyRecords(patientAddress);
+  return records;
+};
+
+export const getMyPrescriptionsOnChain = async (patientAddress) => {
+  const contract = await getPatientContract();
+  const prescriptions = await contract.getMyPrescriptions(patientAddress);
+  return prescriptions;
+};
+

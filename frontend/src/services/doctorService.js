@@ -1,5 +1,8 @@
 // Doctor service for managing doctor-related operations
 import { mockMedicalRecords, mockPatients } from '../data/mockData';
+import { uploadToIPFS } from '../utils/ipfs';
+import { getDoctorContract } from '../utils/contract';
+import { sendTx } from '../utils/web3';
 
 /**
  * Doctor Service
@@ -253,3 +256,27 @@ class DoctorService {
 
 // Export singleton instance
 export default new DoctorService();
+
+// Blockchain-backed functions (named exports)
+export const createMedicalRecord = async (patientAddress, recordData, files = []) => {
+  const ipfsHash = files && files.length ? await uploadToIPFS(files) : '';
+  const contract = await getDoctorContract();
+  const receipt = await sendTx(
+    contract.createMedicalRecord(
+      patientAddress,
+      recordData.diagnosis,
+      recordData.symptoms,
+      recordData.prescription,
+      recordData.treatmentPlan,
+      ipfsHash
+    )
+  );
+  return receipt;
+};
+
+export const getPatientHistory = async (patientAddress) => {
+  const contract = await getDoctorContract();
+  const records = await contract.getPatientRecords(patientAddress);
+  return records;
+};
+
