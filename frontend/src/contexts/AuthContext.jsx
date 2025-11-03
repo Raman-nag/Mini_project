@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { mockUsers } from '../data/mockData';
+import { getHospitalContract, getDoctorContract, getPatientContract } from '../utils/contract';
 
 const AuthContext = createContext();
 
@@ -63,8 +64,7 @@ export const AuthProvider = ({ children }) => {
 
   // Load user profile based on role
   const loadUserProfile = (role) => {
-    // TODO: Replace with actual API call
-    // For now, use mock data
+    // Fallback to mock profile for UI continuity
     const profile = mockUsers[role];
     setUserProfile(profile);
   };
@@ -79,7 +79,7 @@ export const AuthProvider = ({ children }) => {
       // Mock authentication
       await new Promise(resolve => setTimeout(resolve, 1000));
 
-      // Simulate authentication check
+      // Simulate authentication check (frontend-only auth)
       const userData = mockUsers[role];
       
       if (!userData || userData.email !== email) {
@@ -120,6 +120,32 @@ export const AuthProvider = ({ children }) => {
       setIsLoading(false);
     }
   };
+
+  // Optional: verify role on-chain (non-blocking)
+  useEffect(() => {
+    const verifyRole = async () => {
+      try {
+        if (!user?.walletAddress && !user?.address) return;
+        const addr = user.walletAddress || user.address;
+        // Example role checks; adjust to your contract APIs
+        if (userRole === 'hospital') {
+          const c = await getHospitalContract();
+          await c.getHospitalDoctors(); // probe call
+        } else if (userRole === 'doctor') {
+          const c = await getDoctorContract();
+          // e.g., await c.isRegistered(addr)
+        } else if (userRole === 'patient') {
+          const c = await getPatientContract();
+          // e.g., await c.isRegistered(addr)
+        }
+      } catch (e) {
+        // Keep UI usable; log for debugging
+        console.warn('Role verification failed (non-blocking):', e?.message || e);
+      }
+    };
+    verifyRole();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userRole, user?.walletAddress, user?.address]);
 
   // Logout function
   const logout = () => {

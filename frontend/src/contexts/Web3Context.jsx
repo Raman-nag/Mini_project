@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { connectWallet as connectWalletUtil, ensureCorrectNetwork, subscribeWalletEvents, getProvider } from '../utils/web3';
 
 const Web3Context = createContext();
 
@@ -69,35 +70,39 @@ export const Web3Provider = ({ children }) => {
     setError(null);
 
     try {
-      // TODO: Replace with actual MetaMask/Web3 connection
-      // Check if MetaMask is installed
-      if (typeof window.ethereum === 'undefined') {
-        throw new Error('Please install MetaMask or another Web3 wallet');
-      }
+      await ensureCorrectNetwork();
+      const { accounts, provider } = await connectWalletUtil();
+      const network = await provider.getNetwork();
 
-      // Simulate MetaMask connection
-      // In real implementation, this would be:
-      // const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-      // const chainId = await window.ethereum.request({ method: 'eth_chainId' });
-      
-      // Mock connection for now
-      const mockAccount = '0x742d35Cc6634C0532925a3b8D4C9db96C4b4d8b6';
-      const mockChainId = '1337'; // Localhost
-
-      setAccount(mockAccount);
-      setChainId(mockChainId);
-      setNetworkId(mockChainId);
-      setNetworkName(getNetworkName(mockChainId));
+      setAccount(accounts[0]);
+      setChainId(String(network.chainId));
+      setNetworkId(String(network.chainId));
+      setNetworkName(getNetworkName(String(network.chainId)));
       setIsConnected(true);
 
-      // Persist to localStorage
-      localStorage.setItem('wallet_account', mockAccount);
-      localStorage.setItem('wallet_network', mockChainId);
+      localStorage.setItem('wallet_account', accounts[0]);
+      localStorage.setItem('wallet_network', String(network.chainId));
 
-      // Listen for account changes
-      // TODO: Add actual event listeners for window.ethereum
-      
-      console.log('Connected to wallet:', mockAccount);
+      // Register listeners
+      unsubscribeRef.current?.();
+      unsubscribeRef.current = subscribeWalletEvents({
+        onAccountsChanged: (accs) => {
+          if (accs?.length) {
+            setAccount(accs[0]);
+            localStorage.setItem('wallet_account', accs[0]);
+          } else {
+            disconnectWallet();
+          }
+        },
+        onChainChanged: async () => {
+          const prov = getProvider();
+          const net = await prov.getNetwork();
+          setChainId(String(net.chainId));
+          setNetworkId(String(net.chainId));
+          setNetworkName(getNetworkName(String(net.chainId)));
+          localStorage.setItem('wallet_network', String(net.chainId));
+        },
+      });
       
     } catch (err) {
       console.error('Failed to connect wallet:', err);
@@ -108,6 +113,8 @@ export const Web3Provider = ({ children }) => {
   };
 
   // Disconnect wallet
+  const unsubscribeRef = React.useRef(null);
+
   const disconnectWallet = () => {
     setIsConnected(false);
     setAccount(null);
@@ -126,6 +133,10 @@ export const Web3Provider = ({ children }) => {
     localStorage.removeItem('wallet_network');
 
     console.log('Disconnected from wallet');
+
+    // Remove listeners
+    unsubscribeRef.current?.();
+    unsubscribeRef.current = null;
   };
 
   // Switch network
