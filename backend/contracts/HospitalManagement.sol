@@ -3,7 +3,6 @@ pragma solidity ^0.8.19;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "./AccessControl.sol";
 import "./DoctorManagement.sol";
 import "./PatientManagement.sol";
 
@@ -47,7 +46,6 @@ contract HospitalManagement is Ownable, ReentrancyGuard {
     // Interface references
     DoctorManagement public doctorManagement;
     PatientManagement public patientManagement;
-    AccessControl public accessControl;
 
     // Modifiers
     modifier onlyHospital() {
@@ -68,12 +66,10 @@ contract HospitalManagement is Ownable, ReentrancyGuard {
      */
     constructor(
         address _doctorManagement,
-        address _patientManagement,
-        address _accessControl
+        address _patientManagement
     ) {
         doctorManagement = DoctorManagement(_doctorManagement);
         patientManagement = PatientManagement(_patientManagement);
-        accessControl = AccessControl(_accessControl);
     }
 
     /**

@@ -3,7 +3,6 @@ pragma solidity ^0.8.19;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "./AccessControl.sol";
 import "./DoctorManagement.sol";
 
 /**
@@ -34,7 +33,6 @@ contract PatientManagement is Ownable, ReentrancyGuard {
     
     // Interface references
     DoctorManagement public doctorManagement;
-    AccessControl public accessControl;
 
     // Events
     event PatientRegistered(
@@ -64,11 +62,9 @@ contract PatientManagement is Ownable, ReentrancyGuard {
      * @dev Constructor
      */
     constructor(
-        address _doctorManagement,
-        address _accessControl
+        address _doctorManagement
     ) {
         doctorManagement = DoctorManagement(_doctorManagement);
-        accessControl = AccessControl(_accessControl);
     }
 
     /**

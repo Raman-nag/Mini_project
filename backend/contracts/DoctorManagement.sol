@@ -1,16 +1,24 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
+import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "./AccessControl.sol";
 
 /**
  * @title DoctorManagement
  * @dev Manages doctor registration and medical records
  */
-contract DoctorManagement is Ownable, ReentrancyGuard {
+contract DoctorManagement is Ownable, ReentrancyGuard, AccessControl {
+    // ===============================
+    // Role Definitions
+    // ===============================
+    bytes32 public constant HOSPITAL_ADMIN_ROLE = keccak256("HOSPITAL_ADMIN_ROLE");
+    bytes32 public constant DOCTOR_ROLE = keccak256("DOCTOR_ROLE");
+
+    // ===============================
     // Structs
+    // ===============================
     struct Doctor {
         string name;
         string specialization;
@@ -33,7 +41,9 @@ contract DoctorManagement is Ownable, ReentrancyGuard {
         bool isActive;
     }
 
-    // State variables
+    // ===============================
+    // State Variables
+    // ===============================
     mapping(address => Doctor) public doctors;
     mapping(uint256 => MedicalRecord) public medicalRecords;
     mapping(address => uint256[]) public patientRecords;
@@ -42,7 +52,9 @@ contract DoctorManagement is Ownable, ReentrancyGuard {
     uint256 public recordCount;
     mapping(address => bool) public registeredDoctors;
 
+    // ===============================
     // Events
+    // ===============================
     event DoctorRegistered(
         address indexed doctorAddress,
         address indexed hospitalAddress,
@@ -59,10 +71,9 @@ contract DoctorManagement is Ownable, ReentrancyGuard {
         address indexed doctorAddress
     );
 
-    // Interface reference
-    AccessControl public accessControl;
-
+    // ===============================
     // Modifiers
+    // ===============================
     modifier onlyActiveDoctor() {
         require(
             registeredDoctors[msg.sender] && doctors[msg.sender].isActive,
@@ -87,21 +98,23 @@ contract DoctorManagement is Ownable, ReentrancyGuard {
         _;
     }
 
-    /**
-     * @dev Constructor
-     */
-    constructor(address _accessControl) {
-        accessControl = AccessControl(_accessControl);
+    // ===============================
+    // Constructor
+    // ===============================
+    constructor() {
+        // Grant admin role to contract deployer
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _grantRole(HOSPITAL_ADMIN_ROLE, msg.sender);
     }
 
-    /**
-     * @dev Register a new doctor
-     */
+    // ===============================
+    // Doctor Management
+    // ===============================
     function registerDoctor(
         address doctorAddress,
         string memory licenseNumber,
         address hospitalAddress
-    ) external {
+    ) external onlyRole(HOSPITAL_ADMIN_ROLE) {
         require(doctorAddress != address(0), "Invalid doctor address");
         require(!registeredDoctors[doctorAddress], "Doctor already registered");
         require(bytes(licenseNumber).length > 0, "License number required");
@@ -117,12 +130,19 @@ contract DoctorManagement is Ownable, ReentrancyGuard {
         });
 
         registeredDoctors[doctorAddress] = true;
+        _grantRole(DOCTOR_ROLE, doctorAddress);
+
         emit DoctorRegistered(doctorAddress, hospitalAddress, licenseNumber);
     }
 
-    /**
-     * @dev Update doctor profile
-     */
+    function deactivateDoctor(address doctorAddress) 
+        external 
+        onlyRole(HOSPITAL_ADMIN_ROLE)
+    {
+        doctors[doctorAddress].isActive = false;
+        emit DoctorDeactivated(doctorAddress);
+    }
+
     function updateProfile(
         string memory name,
         string memory specialization
@@ -132,9 +152,9 @@ contract DoctorManagement is Ownable, ReentrancyGuard {
         doctor.specialization = specialization;
     }
 
-    /**
-     * @dev Create a new medical record
-     */
+    // ===============================
+    // Medical Records
+    // ===============================
     function createMedicalRecord(
         address patientAddress,
         string memory diagnosis,
@@ -170,9 +190,6 @@ contract DoctorManagement is Ownable, ReentrancyGuard {
         return recordId;
     }
 
-    /**
-     * @dev Update an existing medical record
-     */
     function updateMedicalRecord(
         uint256 recordId,
         string memory diagnosis,
@@ -194,9 +211,9 @@ contract DoctorManagement is Ownable, ReentrancyGuard {
         emit RecordUpdated(recordId, msg.sender);
     }
 
-    /**
-     * @dev Get patient's medical records
-     */
+    // ===============================
+    // Getters
+    // ===============================
     function getPatientRecords(address patientAddress) 
         external 
         view 
@@ -205,9 +222,6 @@ contract DoctorManagement is Ownable, ReentrancyGuard {
         return patientRecords[patientAddress];
     }
 
-    /**
-     * @dev Get doctor's patients
-     */
     function getDoctorPatients() 
         external 
         view 
@@ -217,9 +231,6 @@ contract DoctorManagement is Ownable, ReentrancyGuard {
         return doctorPatients[msg.sender];
     }
 
-    /**
-     * @dev Get record by ID
-     */
     function getRecordById(uint256 recordId) 
         external 
         view 
@@ -228,20 +239,9 @@ contract DoctorManagement is Ownable, ReentrancyGuard {
         return medicalRecords[recordId];
     }
 
-    /**
-     * @dev Deactivate a doctor
-     */
-    function deactivateDoctor(address doctorAddress) 
-        external 
-        onlyHospital(doctorAddress) 
-    {
-        doctors[doctorAddress].isActive = false;
-        emit DoctorDeactivated(doctorAddress);
-    }
-
-    /**
-     * @dev Check if doctor already has this patient
-     */
+    // ===============================
+    // Internal Helpers
+    // ===============================
     function isExistingPatient(address patientAddress) 
         internal 
         view 
