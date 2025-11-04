@@ -10,8 +10,11 @@ import {
   ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
 import Button from '../common/Button';
+import hospitalService from '../../services/hospitalService';
+import { useToast } from '../../contexts/ToastContext';
 
 const AddDoctor = ({ onDoctorAdded, onCancel }) => {
+  const { showToast } = useToast();
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -52,31 +55,24 @@ const AddDoctor = ({ onDoctorAdded, onCancel }) => {
   const validateForm = () => {
     const newErrors = {};
 
-    // Required field validation
-    if (!formData.firstName.trim()) {
-      newErrors.firstName = 'First name is required';
-    }
-    if (!formData.lastName.trim()) {
-      newErrors.lastName = 'Last name is required';
-    }
-    if (!formData.email.trim()) {
-      newErrors.email = 'Email is required';
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = 'Email is invalid';
-    }
-    if (!formData.phone.trim()) {
-      newErrors.phone = 'Phone number is required';
-    }
-    if (!formData.specialty) {
-      newErrors.specialty = 'Specialty is required';
+    // Required field validation for blockchain registration
+    if (!formData.walletAddress.trim()) {
+      newErrors.walletAddress = 'Doctor wallet address is required';
+    } else if (!/^0x[a-fA-F0-9]{40}$/.test(formData.walletAddress)) {
+      newErrors.walletAddress = 'Invalid Ethereum wallet address';
     }
     if (!formData.licenseNumber.trim()) {
       newErrors.licenseNumber = 'License number is required';
     }
-    if (!formData.walletAddress.trim()) {
-      newErrors.walletAddress = 'Wallet address is required';
-    } else if (!/^0x[a-fA-F0-9]{40}$/.test(formData.walletAddress)) {
-      newErrors.walletAddress = 'Invalid Ethereum wallet address';
+
+    // Optional fields (for display/info only)
+    if (formData.firstName.trim() || formData.lastName.trim()) {
+      if (!formData.firstName.trim()) {
+        newErrors.firstName = 'First name is required if last name is provided';
+      }
+      if (!formData.lastName.trim()) {
+        newErrors.lastName = 'Last name is required if first name is provided';
+      }
     }
 
     setErrors(newErrors);
@@ -107,24 +103,39 @@ const AddDoctor = ({ onDoctorAdded, onCancel }) => {
     }
 
     setIsSubmitting(true);
+    setErrors({});
     
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      const doctorData = {
-        ...formData,
-        id: `doc_${Date.now()}`,
-        status: 'Active',
-        joinDate: new Date().toISOString(),
-        totalPatients: 0,
-        totalRecords: 0,
-        rating: 0
-      };
+      // Register doctor on blockchain
+      const result = await hospitalService.registerDoctor(
+        formData.walletAddress,
+        formData.licenseNumber
+      );
 
-      onDoctorAdded(doctorData);
+      if (result.success) {
+        showToast('Doctor registered successfully on blockchain!', 'success');
+        
+        // Doctor can update their profile later with name and specialization
+        const doctorData = {
+          ...result.doctor,
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          email: formData.email,
+          phone: formData.phone,
+          specialty: formData.specialty,
+          experience: formData.experience,
+          qualifications: formData.qualifications,
+          bio: formData.bio
+        };
+
+        onDoctorAdded(doctorData);
+      } else {
+        throw new Error(result.error || 'Failed to register doctor');
+      }
     } catch (error) {
       console.error('Error adding doctor:', error);
+      showToast(error.message || 'Failed to register doctor', 'error');
+      setErrors({ general: error.message || 'Failed to register doctor. Please try again.' });
     } finally {
       setIsSubmitting(false);
     }
@@ -320,6 +331,16 @@ const AddDoctor = ({ onDoctorAdded, onCancel }) => {
             />
           </div>
         </div>
+
+        {/* General Error */}
+        {errors.general && (
+          <div className="bg-error-50 dark:bg-error-900/20 border border-error-200 dark:border-error-800 rounded-xl p-4">
+            <div className="flex items-center">
+              <ExclamationTriangleIcon className="w-5 h-5 text-error-500 mr-3" />
+              <p className="text-sm text-error-700 dark:text-error-300">{errors.general}</p>
+            </div>
+          </div>
+        )}
 
         {/* Form Actions */}
         <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200 dark:border-gray-700">

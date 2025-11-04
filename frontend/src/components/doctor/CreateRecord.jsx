@@ -10,8 +10,11 @@ import {
   XMarkIcon
 } from '@heroicons/react/24/outline';
 import Button from '../common/Button';
+import doctorService from '../../services/doctorService';
+import { useToast } from '../../contexts/ToastContext';
 
 const CreateRecord = ({ onRecordCreated, onCancel }) => {
+  const { showToast } = useToast();
   const [formData, setFormData] = useState({
     patientWalletAddress: '',
     diagnosis: '',
@@ -91,18 +94,19 @@ const CreateRecord = ({ onRecordCreated, onCancel }) => {
 
   const handleFileUpload = async (e) => {
     const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+    
     setIsUploading(true);
     
     try {
-      // Simulate IPFS upload
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      const uploadedFiles = files.map(file => ({
-        id: `doc_${Date.now()}_${Math.random()}`,
+      // Files will be uploaded to IPFS when record is created
+      // Store file objects for now
+      const uploadedFiles = files.map((file, index) => ({
+        id: `doc_${Date.now()}_${index}`,
+        file: file, // Store actual file object
         name: file.name,
         type: file.type,
         size: file.size,
-        ipfsHash: `QmHash${Math.random().toString(36).substr(2, 9)}`,
         uploadDate: new Date().toISOString()
       }));
 
@@ -110,8 +114,11 @@ const CreateRecord = ({ onRecordCreated, onCancel }) => {
         ...prev,
         uploadedDocuments: [...prev.uploadedDocuments, ...uploadedFiles]
       }));
+      
+      showToast('Files ready for upload. They will be uploaded to IPFS when you create the record.', 'info');
     } catch (error) {
-      console.error('Error uploading files:', error);
+      console.error('Error preparing files:', error);
+      showToast('Error preparing files for upload', 'error');
     } finally {
       setIsUploading(false);
     }
@@ -134,23 +141,38 @@ const CreateRecord = ({ onRecordCreated, onCancel }) => {
     setIsSubmitting(true);
     
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
+      // Prepare files for IPFS upload
+      const files = formData.uploadedDocuments
+        .filter(doc => doc.file)
+        .map(doc => doc.file);
+
+      // Prepare record data
       const recordData = {
-        ...formData,
-        id: `rec_${Date.now()}`,
-        doctorId: 'doc_001', // Current doctor ID
-        hospitalId: 'hosp_001',
-        status: 'Active',
-        createdAt: new Date().toISOString(),
-        txHash: `0x${Math.random().toString(16).substr(2, 40)}`,
-        ipfsHash: `QmRecord${Math.random().toString(36).substr(2, 9)}`
+        diagnosis: formData.diagnosis,
+        symptoms: formData.symptoms.split(',').map(s => s.trim()).filter(s => s),
+        prescription: formData.prescriptionDetails,
+        treatmentPlan: formData.treatmentPlan,
+        treatment: formData.treatmentPlan,
+        doctorNotes: formData.notes || ''
       };
 
-      onRecordCreated(recordData);
+      // Create record on blockchain with IPFS file upload
+      const result = await doctorService.createRecord(
+        formData.patientWalletAddress,
+        recordData,
+        files
+      );
+
+      if (result.success) {
+        showToast('Medical record created successfully on blockchain!', 'success');
+        onRecordCreated(result.record);
+      } else {
+        throw new Error(result.error || 'Failed to create record');
+      }
     } catch (error) {
       console.error('Error creating record:', error);
+      showToast(error.message || 'Failed to create medical record', 'error');
+      setErrors({ general: error.message || 'Failed to create record. Please try again.' });
     } finally {
       setIsSubmitting(false);
     }
@@ -413,7 +435,7 @@ const CreateRecord = ({ onRecordCreated, onCancel }) => {
                           {doc.name}
                         </p>
                         <p className="text-xs text-gray-500 dark:text-gray-400">
-                          {formatFileSize(doc.size)} • IPFS: {doc.ipfsHash.slice(0, 10)}...
+                          {formatFileSize(doc.size)} • {doc.ipfsHash ? `IPFS: ${doc.ipfsHash.slice(0, 10)}...` : 'Ready to upload'}
                         </p>
                       </div>
                     </div>
@@ -430,6 +452,16 @@ const CreateRecord = ({ onRecordCreated, onCancel }) => {
             </div>
           )}
         </div>
+
+        {/* General Error */}
+        {errors.general && (
+          <div className="bg-error-50 dark:bg-error-900/20 border border-error-200 dark:border-error-800 rounded-xl p-4">
+            <div className="flex items-center">
+              <ExclamationTriangleIcon className="w-5 h-5 text-error-500 mr-3" />
+              <p className="text-sm text-error-700 dark:text-error-300">{errors.general}</p>
+            </div>
+          </div>
+        )}
 
         {/* Form Actions */}
         <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200 dark:border-gray-700">
