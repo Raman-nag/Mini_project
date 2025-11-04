@@ -1,48 +1,65 @@
-import { mockMedicalRecords, mockPrescriptions, mockPatients } from '../data/mockData';
-import { getPatientContract } from '../utils/contract';
+import { getPatientContract, getDoctorContract } from '../utils/contract';
 import { sendTx } from '../utils/web3';
 
 /**
  * Patient Service
- * Mock implementation for patient operations
+ * Real blockchain implementation for patient operations
  */
 class PatientService {
-  constructor() {
-    this.records = [...mockMedicalRecords];
-    this.prescriptions = [...mockPrescriptions];
-    this.patients = [...mockPatients];
-    this.accessList = [];
+  /**
+   * Register a new patient on blockchain
+   * @param {string} name - Patient's full name
+   * @param {string} dateOfBirth - Date of birth
+   * @param {string} bloodGroup - Blood group
+   * @returns {Promise<Object>} Registration result
+   */
+  async registerPatient(name, dateOfBirth, bloodGroup) {
+    try {
+      const contract = await getPatientContract();
+      const tx = await contract.registerPatient(name, dateOfBirth, bloodGroup);
+      const receipt = await sendTx(Promise.resolve(tx));
+      
+      return {
+        success: true,
+        receipt,
+        message: 'Patient registered successfully on blockchain'
+      };
+    } catch (error) {
+      console.error('Patient Service - Register Error:', error);
+      throw error;
+    }
   }
 
   /**
-   * Get patient's own medical records
+   * Get patient's own medical records from blockchain
    * @param {string} patientAddress - Patient's wallet address
-   * @returns {Promise<Array>} List of medical records
+   * @returns {Promise<Array>} List of medical record IDs
    */
   async getMyRecords(patientAddress) {
     try {
-      // TODO: Replace with actual blockchain/API call
-      await new Promise(resolve => setTimeout(resolve, 800));
-
-      // Find patient by address
-      const patient = this.patients.find(p => p.walletAddress === patientAddress);
+      const contract = await getPatientContract();
+      const recordIds = await contract.getMyRecords();
       
-      if (!patient) {
-        throw new Error('Patient not found');
-      }
-
-      // Filter records by patient ID
-      const myRecords = this.records.filter(record => record.patientId === patient.id);
-
-      // Sort by date (most recent first)
-      myRecords.sort((a, b) => new Date(b.date) - new Date(a.date));
-
-      console.log('[Mock Patient Service] My records retrieved:', myRecords.length);
-
+      // Fetch full record details for each ID
+      const doctorContract = await getDoctorContract();
+      const records = await Promise.all(
+        recordIds.map(async (id) => {
+          try {
+            const record = await doctorContract.getRecordById(id);
+            return this.formatRecord(record, id);
+          } catch (err) {
+            console.error(`Error fetching record ${id}:`, err);
+            return null;
+          }
+        })
+      );
+      
+      const validRecords = records.filter(r => r !== null);
+      
       return {
         success: true,
-        records: myRecords,
-        count: myRecords.length
+        records: validRecords,
+        count: validRecords.length
       };
     } catch (error) {
       console.error('Patient Service - Get My Records Error:', error);
@@ -51,36 +68,29 @@ class PatientService {
   }
 
   /**
-   * Get patient's prescriptions
+   * Get patient's prescriptions from medical records
    * @param {string} patientAddress - Patient's wallet address
    * @returns {Promise<Array>} List of prescriptions
    */
   async getMyPrescriptions(patientAddress) {
     try {
-      // TODO: Replace with actual blockchain/API call
-      await new Promise(resolve => setTimeout(resolve, 600));
-
-      // Find patient by address
-      const patient = this.patients.find(p => p.walletAddress === patientAddress);
+      const records = await this.getMyRecords(patientAddress);
       
-      if (!patient) {
-        throw new Error('Patient not found');
-      }
-
-      // Filter prescriptions by patient ID
-      const myPrescriptions = this.prescriptions.filter(
-        prescription => prescription.patientId === patient.id
-      );
-
-      // Sort by date (most recent first)
-      myPrescriptions.sort((a, b) => new Date(b.date) - new Date(a.date));
-
-      console.log('[Mock Patient Service] My prescriptions retrieved:', myPrescriptions.length);
-
+      // Extract prescriptions from records
+      const prescriptions = records.records
+        .filter(record => record.prescription)
+        .map(record => ({
+          id: record.id,
+          prescription: record.prescription,
+          doctor: record.doctorName,
+          date: record.date,
+          diagnosis: record.diagnosis
+        }));
+      
       return {
         success: true,
-        prescriptions: myPrescriptions,
-        count: myPrescriptions.length
+        prescriptions,
+        count: prescriptions.length
       };
     } catch (error) {
       console.error('Patient Service - Get My Prescriptions Error:', error);
@@ -89,49 +99,23 @@ class PatientService {
   }
 
   /**
-   * Grant access to a third party
-   * @param {string} address - Third party wallet address
-   * @param {Object} accessOptions - Access options
+   * Grant access to a doctor/address
+   * @param {string} addressToGrant - Address to grant access to
    * @returns {Promise<Object>} Grant access result
    */
-  async grantAccess(address, accessOptions = {}) {
+  async grantAccess(addressToGrant) {
     try {
-      // TODO: Replace with actual blockchain/API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Validate address
-      if (!address || !address.startsWith('0x')) {
+      if (!addressToGrant || !addressToGrant.startsWith('0x')) {
         throw new Error('Invalid wallet address');
       }
 
-      // Check if access already granted
-      const existingAccess = this.accessList.find(access => access.address === address);
+      const contract = await getPatientContract();
+      const tx = await contract.grantAccess(addressToGrant);
+      const receipt = await sendTx(Promise.resolve(tx));
       
-      if (existingAccess) {
-        throw new Error('Access already granted to this address');
-      }
-
-      // Create access record
-      const accessRecord = {
-        id: `acc_${Date.now()}`,
-        address: address,
-        type: accessOptions.type || 'third_party',
-        provider: accessOptions.provider || 'Unknown Provider',
-        grantedAt: new Date().toISOString(),
-        expiresAt: accessOptions.expiresAt || null,
-        status: 'active',
-        permissions: accessOptions.permissions || ['read'],
-        purpose: accessOptions.purpose || 'Medical records access'
-      };
-
-      // Add to access list
-      this.accessList.push(accessRecord);
-
-      console.log('[Mock Patient Service] Access granted:', accessRecord);
-
       return {
         success: true,
-        access: accessRecord,
+        receipt,
         message: 'Access granted successfully'
       };
     } catch (error) {
@@ -141,30 +125,19 @@ class PatientService {
   }
 
   /**
-   * Revoke access from a third party
-   * @param {string} address - Third party wallet address
+   * Revoke access from an address
+   * @param {string} addressToRevoke - Address to revoke access from
    * @returns {Promise<Object>} Revoke access result
    */
-  async revokeAccess(address) {
+  async revokeAccess(addressToRevoke) {
     try {
-      // TODO: Replace with actual blockchain/API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Find access record
-      const accessIndex = this.accessList.findIndex(access => access.address === address);
-
-      if (accessIndex === -1) {
-        throw new Error('Access not found');
-      }
-
-      const revokedAccess = this.accessList[accessIndex];
-      this.accessList.splice(accessIndex, 1);
-
-      console.log('[Mock Patient Service] Access revoked:', revokedAccess);
-
+      const contract = await getPatientContract();
+      const tx = await contract.revokeAccess(addressToRevoke);
+      const receipt = await sendTx(Promise.resolve(tx));
+      
       return {
         success: true,
-        access: revokedAccess,
+        receipt,
         message: 'Access revoked successfully'
       };
     } catch (error) {
@@ -174,55 +147,46 @@ class PatientService {
   }
 
   /**
-   * Get list of granted access
-   * @returns {Promise<Array>} List of access records
+   * Check if an address has access to patient data
+   * @param {string} requesterAddress - Address requesting access
+   * @param {string} patientAddress - Patient's address
+   * @returns {Promise<boolean>} Whether access is granted
    */
-  async getAccessList() {
+  async hasAccess(requesterAddress, patientAddress) {
     try {
-      // TODO: Replace with actual blockchain/API call
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      console.log('[Mock Patient Service] Access list retrieved:', this.accessList.length);
-
-      return {
-        success: true,
-        accessList: this.accessList,
-        count: this.accessList.length
-      };
+      const contract = await getPatientContract();
+      const hasAccess = await contract.hasAccess(requesterAddress, patientAddress);
+      return hasAccess;
     } catch (error) {
-      console.error('Patient Service - Get Access List Error:', error);
-      throw error;
+      console.error('Patient Service - Check Access Error:', error);
+      return false;
     }
   }
 
   /**
-   * Get patient profile
+   * Get patient profile from blockchain
    * @param {string} patientAddress - Patient's wallet address
    * @returns {Promise<Object>} Patient profile data
    */
   async getMyProfile(patientAddress) {
     try {
-      // TODO: Replace with actual blockchain/API call
-      await new Promise(resolve => setTimeout(resolve, 600));
-
-      const patient = this.patients.find(p => p.walletAddress === patientAddress);
-
-      if (!patient) {
-        throw new Error('Patient not found');
-      }
-
-      // Get additional stats
-      const stats = {
-        totalRecords: this.records.filter(r => r.patientId === patient.id).length,
-        totalPrescriptions: this.prescriptions.filter(p => p.patientId === patient.id).length,
-        lastVisitDate: this.getLastVisitDate(patient.id)
-      };
-
+      const contract = await getPatientContract();
+      const profile = await contract.getPatientDetails(patientAddress);
+      
+      // Get records count
+      const records = await this.getMyRecords(patientAddress);
+      
       return {
         success: true,
         profile: {
-          ...patient,
-          ...stats
+          name: profile.name,
+          dateOfBirth: profile.dateOfBirth,
+          bloodGroup: profile.bloodGroup,
+          walletAddress: patientAddress,
+          registeredDate: new Date(Number(profile.registeredDate) * 1000).toISOString(),
+          isActive: profile.isActive,
+          totalRecords: records.count,
+          totalPrescriptions: (await this.getMyPrescriptions(patientAddress)).count
         }
       };
     } catch (error) {
@@ -232,45 +196,34 @@ class PatientService {
   }
 
   /**
-   * Helper method to get last visit date
-   * @param {string} patientId - Patient ID
-   * @returns {string|null} Last visit date
+   * Format blockchain record to frontend format
+   * @param {Object} record - Raw blockchain record
+   * @param {string} recordId - Record ID
+   * @returns {Object} Formatted record
    */
-  getLastVisitDate(patientId) {
-    const patientRecords = this.records.filter(r => r.patientId === patientId);
-    
-    if (patientRecords.length === 0) return null;
-
-    const dates = patientRecords.map(r => new Date(r.date));
-    return new Date(Math.max(...dates)).toISOString().split('T')[0];
+  formatRecord(record, recordId) {
+    return {
+      id: recordId.toString(),
+      patientAddress: record.patientAddress,
+      doctorAddress: record.doctorAddress,
+      diagnosis: record.diagnosis,
+      symptoms: record.symptoms || [],
+      prescription: record.prescription,
+      treatmentPlan: record.treatmentPlan,
+      ipfsHash: record.ipfsHash,
+      timestamp: Number(record.timestamp),
+      date: new Date(Number(record.timestamp) * 1000).toISOString().split('T')[0],
+      isActive: record.isActive,
+      doctorName: record.doctorAddress ? `${record.doctorAddress.slice(0, 6)}...${record.doctorAddress.slice(-4)}` : 'Unknown'
+    };
   }
 }
 
 // Export singleton instance
 export default new PatientService();
 
-// Blockchain-backed functions (named exports)
-export const grantAccessOnChain = async (address, permissions = ['read']) => {
-  const contract = await getPatientContract();
-  const receipt = await sendTx(contract.grantAccess(address, permissions));
-  return receipt;
-};
-
-export const revokeAccessOnChain = async (address) => {
-  const contract = await getPatientContract();
-  const receipt = await sendTx(contract.revokeAccess(address));
-  return receipt;
-};
-
-export const getMyRecordsOnChain = async (patientAddress) => {
-  const contract = await getPatientContract();
-  const records = await contract.getMyRecords(patientAddress);
-  return records;
-};
-
-export const getMyPrescriptionsOnChain = async (patientAddress) => {
-  const contract = await getPatientContract();
-  const prescriptions = await contract.getMyPrescriptions(patientAddress);
-  return prescriptions;
-};
-
+// Named exports for backward compatibility
+export const grantAccessOnChain = (address) => new PatientService().grantAccess(address);
+export const revokeAccessOnChain = (address) => new PatientService().revokeAccess(address);
+export const getMyRecordsOnChain = (patientAddress) => new PatientService().getMyRecords(patientAddress);
+export const getMyPrescriptionsOnChain = (patientAddress) => new PatientService().getMyPrescriptions(patientAddress);

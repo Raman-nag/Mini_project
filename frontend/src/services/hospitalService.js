@@ -1,51 +1,71 @@
-import { mockDoctors, mockPatients, mockHospitals } from '../data/mockData';
-import { getHospitalContract } from '../utils/contract';
+import { getHospitalContract, getDoctorContract, getPatientContract } from '../utils/contract';
 import { sendTx } from '../utils/web3';
 
 /**
  * Hospital Service
- * Mock implementation for hospital management operations
+ * Real blockchain implementation for hospital management operations
  */
 class HospitalService {
-  constructor() {
-    this.doctors = [...mockDoctors];
-    this.patients = [...mockPatients];
+  /**
+   * Register a new hospital on blockchain
+   * @param {string} name - Hospital name
+   * @param {string} registrationNumber - Hospital registration number
+   * @returns {Promise<Object>} Registration result
+   */
+  async registerHospital(name, registrationNumber) {
+    try {
+      const contract = await getHospitalContract();
+      const tx = await contract.registerHospital(name, registrationNumber);
+      const receipt = await sendTx(Promise.resolve(tx));
+      
+      return {
+        success: true,
+        receipt,
+        message: 'Hospital registered successfully on blockchain'
+      };
+    } catch (error) {
+      console.error('Hospital Service - Register Error:', error);
+      throw error;
+    }
   }
 
   /**
    * Register a new doctor in the hospital
-   * @param {Object} doctorData - Doctor information
+   * @param {string} doctorAddress - Doctor's wallet address
+   * @param {string} licenseNumber - Doctor's license number
    * @returns {Promise<Object>} Registered doctor data
    */
-  async registerDoctor(doctorData) {
+  async registerDoctor(doctorAddress, licenseNumber) {
     try {
-      // TODO: Replace with actual blockchain/API call
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Validate required fields
-      if (!doctorData.firstName || !doctorData.lastName || !doctorData.specialty) {
-        throw new Error('Missing required fields: firstName, lastName, specialty');
+      if (!doctorAddress || !doctorAddress.startsWith('0x')) {
+        throw new Error('Invalid doctor wallet address');
+      }
+      
+      if (!licenseNumber || licenseNumber.trim().length === 0) {
+        throw new Error('License number is required');
       }
 
-      // Create new doctor object
-      const newDoctor = {
-        id: `doc_${Date.now()}`,
-        ...doctorData,
-        status: 'active',
-        registeredAt: new Date().toISOString(),
-        walletAddress: doctorData.walletAddress || `0x${Math.random().toString(16).substr(2, 40)}`
-      };
-
-      // Add to doctors list
-      this.doctors.push(newDoctor);
-
-      console.log('[Mock Hospital Service] Doctor registered:', newDoctor);
-
+      const contract = await getHospitalContract();
+      const tx = await contract.addDoctor(doctorAddress, licenseNumber);
+      const receipt = await sendTx(Promise.resolve(tx));
+      
+      // Fetch doctor details
+      const doctorContract = await getDoctorContract();
+      const doctor = await doctorContract.doctors(doctorAddress);
+      
       return {
         success: true,
-        doctor: newDoctor,
-        message: 'Doctor registered successfully'
+        doctor: {
+          walletAddress: doctorAddress,
+          name: doctor.name,
+          specialization: doctor.specialization,
+          licenseNumber: doctor.licenseNumber,
+          hospitalAddress: doctor.hospitalAddress,
+          isActive: doctor.isActive,
+          timestamp: Number(doctor.timestamp)
+        },
+        receipt,
+        message: 'Doctor registered successfully on blockchain'
       };
     } catch (error) {
       console.error('Hospital Service - Register Doctor Error:', error);
@@ -59,16 +79,41 @@ class HospitalService {
    */
   async getDoctors() {
     try {
-      // TODO: Replace with actual blockchain/API call
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      console.log('[Mock Hospital Service] Getting doctors:', this.doctors.length);
-
+      const contract = await getHospitalContract();
+      const { getSigner } = await import('../utils/web3');
+      const signer = await getSigner();
+      const hospitalAddress = await signer.getAddress();
+      
+      const doctorAddresses = await contract.getHospitalDoctors(hospitalAddress);
+      
+      // Fetch doctor details
+      const doctorContract = await getDoctorContract();
+      const doctors = await Promise.all(
+        doctorAddresses.map(async (address) => {
+          try {
+            const doctor = await doctorContract.doctors(address);
+            return {
+              walletAddress: address,
+              name: doctor.name,
+              specialization: doctor.specialization,
+              licenseNumber: doctor.licenseNumber,
+              hospitalAddress: doctor.hospitalAddress,
+              isActive: doctor.isActive,
+              timestamp: Number(doctor.timestamp)
+            };
+          } catch (err) {
+            console.error(`Error fetching doctor ${address}:`, err);
+            return null;
+          }
+        })
+      );
+      
+      const validDoctors = doctors.filter(d => d !== null);
+      
       return {
         success: true,
-        doctors: this.doctors,
-        count: this.doctors.length
+        doctors: validDoctors,
+        count: validDoctors.length
       };
     } catch (error) {
       console.error('Hospital Service - Get Doctors Error:', error);
@@ -77,21 +122,45 @@ class HospitalService {
   }
 
   /**
-   * Get all patients
+   * Get all patients associated with the hospital
    * @returns {Promise<Array>} List of patients
    */
   async getPatients() {
     try {
-      // TODO: Replace with actual blockchain/API call
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      console.log('[Mock Hospital Service] Getting patients:', this.patients.length);
-
+      const contract = await getHospitalContract();
+      const { getSigner } = await import('../utils/web3');
+      const signer = await getSigner();
+      const hospitalAddress = await signer.getAddress();
+      
+      const patientAddresses = await contract.getHospitalPatients(hospitalAddress);
+      
+      // Fetch patient details
+      const patientContract = await getPatientContract();
+      const patients = await Promise.all(
+        patientAddresses.map(async (address) => {
+          try {
+            const patient = await patientContract.patients(address);
+            return {
+              walletAddress: address,
+              name: patient.name,
+              dateOfBirth: patient.dateOfBirth,
+              bloodGroup: patient.bloodGroup,
+              registeredDate: Number(patient.registeredDate),
+              isActive: patient.isActive
+            };
+          } catch (err) {
+            console.error(`Error fetching patient ${address}:`, err);
+            return null;
+          }
+        })
+      );
+      
+      const validPatients = patients.filter(p => p !== null);
+      
       return {
         success: true,
-        patients: this.patients,
-        count: this.patients.length
+        patients: validPatients,
+        count: validPatients.length
       };
     } catch (error) {
       console.error('Hospital Service - Get Patients Error:', error);
@@ -101,34 +170,53 @@ class HospitalService {
 
   /**
    * Remove a doctor from the hospital
-   * @param {string} address - Doctor's wallet address
+   * @param {string} doctorAddress - Doctor's wallet address
    * @returns {Promise<Object>} Removal result
    */
-  async removeDoctor(address) {
+  async removeDoctor(doctorAddress) {
     try {
-      // TODO: Replace with actual blockchain/API call
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Find and remove doctor
-      const doctorIndex = this.doctors.findIndex(doctor => doctor.walletAddress === address);
-
-      if (doctorIndex === -1) {
-        throw new Error('Doctor not found');
-      }
-
-      const removedDoctor = this.doctors[doctorIndex];
-      this.doctors.splice(doctorIndex, 1);
-
-      console.log('[Mock Hospital Service] Doctor removed:', removedDoctor.name);
-
+      const contract = await getHospitalContract();
+      const tx = await contract.removeDoctor(doctorAddress);
+      const receipt = await sendTx(Promise.resolve(tx));
+      
       return {
         success: true,
-        doctor: removedDoctor,
+        receipt,
         message: 'Doctor removed successfully'
       };
     } catch (error) {
       console.error('Hospital Service - Remove Doctor Error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get hospital details
+   * @returns {Promise<Object>} Hospital data
+   */
+  async getHospitalDetails() {
+    try {
+      const contract = await getHospitalContract();
+      const { getSigner } = await import('../utils/web3');
+      const signer = await getSigner();
+      const hospitalAddress = await signer.getAddress();
+      
+      const details = await contract.getHospitalDetails(hospitalAddress);
+      
+      return {
+        success: true,
+        hospital: {
+          name: details.name,
+          registrationNumber: details.registrationNumber,
+          walletAddress: hospitalAddress,
+          isActive: details.isActive,
+          timestamp: Number(details.timestamp),
+          doctorCount: Number(details.doctorCount),
+          patientCount: Number(details.patientCount)
+        }
+      };
+    } catch (error) {
+      console.error('Hospital Service - Get Hospital Details Error:', error);
       throw error;
     }
   }
@@ -140,58 +228,23 @@ class HospitalService {
    */
   async getDoctorByAddress(address) {
     try {
-      // TODO: Replace with actual blockchain/API call
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      const doctor = this.doctors.find(doctor => doctor.walletAddress === address);
-
-      if (!doctor) {
-        throw new Error('Doctor not found');
-      }
-
+      const doctorContract = await getDoctorContract();
+      const doctor = await doctorContract.doctors(address);
+      
       return {
         success: true,
-        doctor
+        doctor: {
+          walletAddress: address,
+          name: doctor.name,
+          specialization: doctor.specialization,
+          licenseNumber: doctor.licenseNumber,
+          hospitalAddress: doctor.hospitalAddress,
+          isActive: doctor.isActive,
+          timestamp: Number(doctor.timestamp)
+        }
       };
     } catch (error) {
       console.error('Hospital Service - Get Doctor Error:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Update doctor information
-   * @param {string} address - Doctor's wallet address
-   * @param {Object} updateData - Data to update
-   * @returns {Promise<Object>} Updated doctor data
-   */
-  async updateDoctor(address, updateData) {
-    try {
-      // TODO: Replace with actual blockchain/API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      const doctorIndex = this.doctors.findIndex(doctor => doctor.walletAddress === address);
-
-      if (doctorIndex === -1) {
-        throw new Error('Doctor not found');
-      }
-
-      // Update doctor data
-      this.doctors[doctorIndex] = {
-        ...this.doctors[doctorIndex],
-        ...updateData,
-        updatedAt: new Date().toISOString()
-      };
-
-      console.log('[Mock Hospital Service] Doctor updated:', this.doctors[doctorIndex]);
-
-      return {
-        success: true,
-        doctor: this.doctors[doctorIndex],
-        message: 'Doctor updated successfully'
-      };
-    } catch (error) {
-      console.error('Hospital Service - Update Doctor Error:', error);
       throw error;
     }
   }
@@ -200,23 +253,8 @@ class HospitalService {
 // Export singleton instance
 export default new HospitalService();
 
-// Blockchain-backed functions (named exports) — keep mocks above for compatibility
-export const registerDoctor = async (doctorData) => {
-  const contract = await getHospitalContract();
-  const receipt = await sendTx(
-    contract.addDoctor(
-      doctorData.address,
-      doctorData.name,
-      doctorData.specialization,
-      doctorData.licenseNumber
-    )
-  );
-  return receipt;
-};
+// Named exports for backward compatibility
+export const registerDoctor = (doctorAddress, licenseNumber) => 
+  new HospitalService().registerDoctor(doctorAddress, licenseNumber);
 
-export const getDoctors = async () => {
-  const contract = await getHospitalContract();
-  const doctors = await contract.getHospitalDoctors();
-  return doctors;
-};
-
+export const getDoctors = () => new HospitalService().getDoctors();

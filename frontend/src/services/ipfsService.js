@@ -1,39 +1,40 @@
+import { uploadToIPFS, ipfsUrl } from '../utils/ipfs';
+import { IPFS_CONFIG } from '../config/contractConfig';
+
 /**
  * IPFS Service
- * Mock implementation for IPFS file operations
+ * Real implementation for IPFS file operations using Pinata
  */
 class IPFSService {
   constructor() {
-    this.gatewayBaseUrl = 'https://ipfs.io/ipfs/';
+    this.gatewayBaseUrl = IPFS_CONFIG.gateway || 'https://gateway.pinata.cloud/ipfs/';
   }
 
   /**
-   * Upload file to IPFS
+   * Upload file to IPFS using Pinata
    * @param {File|Blob} file - File to upload
    * @param {Object} options - Upload options
-   * @returns {Promise<string>} IPFS hash
+   * @returns {Promise<string>} IPFS hash (CID)
    */
   async uploadFile(file, options = {}) {
     try {
-      // TODO: Replace with actual IPFS upload
-      // Simulate upload delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      if (!IPFS_CONFIG.pinataApiKey || !IPFS_CONFIG.pinataSecretApiKey) {
+        throw new Error('IPFS credentials not configured. Please set VITE_PINATA_API_KEY and VITE_PINATA_SECRET_API_KEY in your .env file.');
+      }
 
-      // Generate mock IPFS hash (Qm... format)
-      const mockHash = `Qm${Math.random().toString(16).substr(2, 44)}`;
-
-      console.log('[Mock IPFS Service] File uploaded:', {
+      const hash = await uploadToIPFS([file], options.onProgress);
+      
+      console.log('[IPFS Service] File uploaded:', {
         name: file.name,
         size: file.size,
         type: file.type,
-        hash: mockHash
+        hash
       });
 
-      return mockHash;
-
+      return hash;
     } catch (error) {
       console.error('IPFS Service - Upload File Error:', error);
-      throw new Error('Failed to upload file to IPFS');
+      throw new Error(`Failed to upload file to IPFS: ${error.message}`);
     }
   }
 
@@ -44,123 +45,70 @@ class IPFSService {
    */
   async uploadMultipleFiles(files) {
     try {
-      const results = [];
-
-      for (const file of files) {
-        const hash = await this.uploadFile(file);
-        results.push({ file, hash });
+      if (!IPFS_CONFIG.pinataApiKey || !IPFS_CONFIG.pinataSecretApiKey) {
+        throw new Error('IPFS credentials not configured. Please set VITE_PINATA_API_KEY and VITE_PINATA_SECRET_API_KEY in your .env file.');
       }
 
-      console.log('[Mock IPFS Service] Multiple files uploaded:', results.length);
+      const hash = await uploadToIPFS(files);
+      
+      // Pinata returns a single hash for multiple files
+      const results = files.map((file, index) => ({
+        file,
+        hash: hash, // All files share the same hash when uploaded together
+        url: this.getGatewayURL(hash)
+      }));
+
+      console.log('[IPFS Service] Multiple files uploaded:', results.length);
 
       return results;
-
     } catch (error) {
       console.error('IPFS Service - Upload Multiple Files Error:', error);
-      throw new Error('Failed to upload files to IPFS');
+      throw new Error(`Failed to upload files to IPFS: ${error.message}`);
     }
   }
 
   /**
    * Retrieve file from IPFS
-   * @param {string} hash - IPFS hash
+   * @param {string} hash - IPFS hash (CID)
    * @returns {Promise<string>} File URL
    */
   async retrieveFile(hash) {
     try {
-      // TODO: Replace with actual IPFS retrieval
-      // Simulate retrieval delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      if (!hash || hash.trim().length === 0) {
+        throw new Error('Invalid IPFS hash');
+      }
 
-      // Return gateway URL
-      const url = `${this.gatewayBaseUrl}${hash}`;
+      const url = this.getGatewayURL(hash);
 
-      console.log('[Mock IPFS Service] File retrieved:', hash);
+      console.log('[IPFS Service] File retrieved:', hash);
 
       return url;
-
     } catch (error) {
       console.error('IPFS Service - Retrieve File Error:', error);
-      throw new Error('Failed to retrieve file from IPFS');
+      throw new Error(`Failed to retrieve file from IPFS: ${error.message}`);
     }
   }
 
   /**
    * Get IPFS gateway URL
-   * @param {string} hash - IPFS hash
+   * @param {string} hash - IPFS hash (CID)
    * @returns {string} Gateway URL
    */
   getGatewayURL(hash) {
-    return `${this.gatewayBaseUrl}${hash}`;
+    if (!hash) return '';
+    return ipfsUrl(hash);
   }
 
   /**
-   * Pin file to IPFS
+   * Validate IPFS hash
    * @param {string} hash - IPFS hash
-   * @returns {Promise<boolean>} Success status
+   * @returns {boolean} Validation result
    */
-  async pinFile(hash) {
-    try {
-      // TODO: Replace with actual IPFS pinning
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      console.log('[Mock IPFS Service] File pinned:', hash);
-
-      return true;
-
-    } catch (error) {
-      console.error('IPFS Service - Pin File Error:', error);
-      throw new Error('Failed to pin file to IPFS');
-    }
-  }
-
-  /**
-   * Unpin file from IPFS
-   * @param {string} hash - IPFS hash
-   * @returns {Promise<boolean>} Success status
-   */
-  async unpinFile(hash) {
-    try {
-      // TODO: Replace with actual IPFS unpinning
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      console.log('[Mock IPFS Service] File unpinned:', hash);
-
-      return true;
-
-    } catch (error) {
-      console.error('IPFS Service - Unpin File Error:', error);
-      throw new Error('Failed to unpin file from IPFS');
-    }
-  }
-
-  /**
-   * Get file info from IPFS
-   * @param {string} hash - IPFS hash
-   * @returns {Promise<Object>} File information
-   */
-  async getFileInfo(hash) {
-    try {
-      // TODO: Replace with actual IPFS file info
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      const mockInfo = {
-        hash,
-        size: Math.floor(Math.random() * 1000000),
-        type: 'application/octet-stream',
-        isDirectory: false,
-        links: [],
-        gatewayURL: this.getGatewayURL(hash)
-      };
-
-      console.log('[Mock IPFS Service] File info:', mockInfo);
-
-      return mockInfo;
-
-    } catch (error) {
-      console.error('IPFS Service - Get File Info Error:', error);
-      throw new Error('Failed to get file info from IPFS');
-    }
+  isValidHash(hash) {
+    if (!hash || typeof hash !== 'string') return false;
+    // IPFS hashes (CIDs) can be Qm... (v0) or start with other prefixes (v1)
+    // Basic validation: non-empty string
+    return hash.trim().length > 0;
   }
 
   /**
@@ -171,32 +119,22 @@ class IPFSService {
    */
   async downloadFile(hash, filename = 'download') {
     try {
-      // TODO: Replace with actual IPFS download
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const url = this.getGatewayURL(hash);
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to download file: ${response.statusText}`);
+      }
 
-      // Generate mock file content
-      const mockBlob = new Blob(['Mock IPFS file content'], {
-        type: 'text/plain'
-      });
+      const blob = await response.blob();
 
-      console.log('[Mock IPFS Service] File downloaded:', hash);
+      console.log('[IPFS Service] File downloaded:', hash);
 
-      return mockBlob;
-
+      return blob;
     } catch (error) {
       console.error('IPFS Service - Download File Error:', error);
-      throw new Error('Failed to download file from IPFS');
+      throw new Error(`Failed to download file from IPFS: ${error.message}`);
     }
-  }
-
-  /**
-   * Validate IPFS hash
-   * @param {string} hash - IPFS hash
-   * @returns {boolean} Validation result
-   */
-  isValidHash(hash) {
-    // IPFS hashes typically start with 'Qm' or 'zb' and are 46 characters long
-    return hash && (hash.startsWith('Qm') || hash.startsWith('zb')) && hash.length === 46;
   }
 }
 
