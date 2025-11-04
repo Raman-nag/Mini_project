@@ -1,7 +1,9 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { mockUsers } from '../data/mockData';
+import { connectWallet, getProvider, getSigner, ensureCorrectNetwork } from '../utils/web3';
 import { getHospitalContract, getDoctorContract, getPatientContract } from '../utils/contract';
+import patientService from '../services/patientService';
+import hospitalService from '../services/hospitalService';
 
 const AuthContext = createContext();
 
@@ -24,7 +26,7 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [userRole, setUserRole] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
-  const [token, setToken] = useState(null);
+  const [walletAddress, setWalletAddress] = useState(null);
   
   // Error handling
   const [error, setError] = useState(null);
@@ -34,25 +36,41 @@ export const AuthProvider = ({ children }) => {
     checkAuthState();
   }, []);
 
-  // Check authentication state from localStorage
-  const checkAuthState = () => {
+  // Check authentication state from localStorage and blockchain
+  const checkAuthState = async () => {
     try {
       setIsLoading(true);
       
-      // Check localStorage for persisted auth state
-      const savedToken = localStorage.getItem('auth_token');
-      const savedUser = localStorage.getItem('auth_user');
+      // Check localStorage for persisted wallet address
+      const savedAddress = localStorage.getItem('wallet_address');
       const savedRole = localStorage.getItem('auth_role');
       
-      if (savedToken && savedUser && savedRole) {
-        // Restore user session
-        setUser(JSON.parse(savedUser));
-        setUserRole(savedRole);
-        setToken(savedToken);
-        setIsAuthenticated(true);
-        
-        // Load user profile based on role
-        loadUserProfile(savedRole);
+      if (savedAddress) {
+        // Verify wallet is still connected
+        try {
+          await ensureCorrectNetwork();
+          const { accounts } = await connectWallet();
+          
+          if (accounts && accounts.length > 0 && accounts[0].toLowerCase() === savedAddress.toLowerCase()) {
+            setWalletAddress(savedAddress);
+            
+            // Check role on blockchain
+            const detectedRole = await detectUserRole(savedAddress);
+            if (detectedRole) {
+              setUserRole(detectedRole);
+              setIsAuthenticated(true);
+              await loadUserProfile(savedAddress, detectedRole);
+            } else if (savedRole) {
+              // Fallback to saved role if blockchain check fails
+              setUserRole(savedRole);
+              setIsAuthenticated(true);
+            }
+          }
+        } catch (err) {
+          console.warn('Wallet connection failed:', err);
+          // Clear invalid state
+          clearAuthState();
+        }
       }
     } catch (err) {
       console.error('Error checking auth state:', err);
@@ -62,55 +80,139 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Load user profile based on role
-  const loadUserProfile = (role) => {
-    // Fallback to mock profile for UI continuity
-    const profile = mockUsers[role];
-    setUserProfile(profile);
+  // Detect user role from blockchain
+  const detectUserRole = async (address) => {
+    try {
+      // Check if user is a registered hospital
+      try {
+        const hospitalContract = await getHospitalContract();
+        const hospital = await hospitalContract.hospitals(address);
+        if (hospital && hospital.isActive) {
+          return 'hospital';
+        }
+      } catch (e) {
+        // Not a hospital, continue checking
+      }
+
+      // Check if user is a registered doctor
+      try {
+        const doctorContract = await getDoctorContract();
+        const doctor = await doctorContract.doctors(address);
+        if (doctor && doctor.isActive) {
+          return 'doctor';
+        }
+      } catch (e) {
+        // Not a doctor, continue checking
+      }
+
+      // Check if user is a registered patient
+      try {
+        const patientContract = await getPatientContract();
+        const isRegistered = await patientContract.registeredPatients(address);
+        if (isRegistered) {
+          const patient = await patientContract.patients(address);
+          if (patient && patient.isActive) {
+            return 'patient';
+          }
+        }
+      } catch (e) {
+        // Not a patient
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Error detecting user role:', error);
+      return null;
+    }
   };
 
-  // Login function
-  const login = async (email, password, role) => {
+  // Load user profile from blockchain
+  const loadUserProfile = async (address, role) => {
+    try {
+      if (role === 'patient') {
+        const profile = await patientService.getMyProfile(address);
+        setUserProfile(profile.profile);
+        setUser({
+          walletAddress: address,
+          role: 'patient',
+          ...profile.profile
+        });
+      } else if (role === 'doctor') {
+        const doctorContract = await getDoctorContract();
+        const doctor = await doctorContract.doctors(address);
+        setUserProfile({
+          walletAddress: address,
+          name: doctor.name || '',
+          specialization: doctor.specialization || '',
+          licenseNumber: doctor.licenseNumber || '',
+          hospitalAddress: doctor.hospitalAddress || '',
+          isActive: doctor.isActive
+        });
+        setUser({
+          walletAddress: address,
+          role: 'doctor',
+          name: doctor.name || '',
+          specialization: doctor.specialization || ''
+        });
+      } else if (role === 'hospital') {
+        const hospital = await hospitalService.getHospitalDetails();
+        setUserProfile(hospital.hospital);
+        setUser({
+          walletAddress: address,
+          role: 'hospital',
+          ...hospital.hospital
+        });
+      }
+    } catch (error) {
+      console.error('Error loading user profile:', error);
+    }
+  };
+
+  // Login function - connects wallet and detects role
+  const login = async (role = null) => {
     try {
       setIsLoading(true);
       setError(null);
 
-      // TODO: Replace with actual API call
-      // Mock authentication
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Ensure correct network
+      await ensureCorrectNetwork();
 
-      // Simulate authentication check (frontend-only auth)
-      const userData = mockUsers[role];
+      // Connect wallet
+      const { accounts } = await connectWallet();
       
-      if (!userData || userData.email !== email) {
-        throw new Error('Invalid credentials');
+      if (!accounts || accounts.length === 0) {
+        throw new Error('No wallet accounts found. Please connect MetaMask.');
       }
 
-      // Generate mock token
-      const authToken = `mock_token_${Date.now()}`;
+      const address = accounts[0];
+      setWalletAddress(address);
 
-      // Set authentication state
-      setUser({
-        email,
-        role,
-        ...userData,
-      });
-      setUserRole(role);
-      setUserProfile(userData);
-      setToken(authToken);
+      // Detect role from blockchain
+      const detectedRole = await detectUserRole(address);
+      
+      if (!detectedRole) {
+        throw new Error('Wallet address not registered. Please register first.');
+      }
+
+      // If role was specified, verify it matches
+      if (role && detectedRole !== role) {
+        throw new Error(`This wallet is registered as ${detectedRole}, not ${role}.`);
+      }
+
+      setUserRole(detectedRole);
       setIsAuthenticated(true);
+      await loadUserProfile(address, detectedRole);
 
       // Persist to localStorage
-      localStorage.setItem('auth_token', authToken);
-      localStorage.setItem('auth_user', JSON.stringify({ email, role, ...userData }));
-      localStorage.setItem('auth_role', role);
+      localStorage.setItem('wallet_address', address);
+      localStorage.setItem('auth_role', detectedRole);
 
-      console.log('Logged in as:', email, role);
+      console.log('Logged in as:', address, detectedRole);
 
       // Navigate to appropriate dashboard
-      navigate(`/${role}/dashboard`);
+      navigate(`/${detectedRole}/dashboard`);
 
-      return { success: true };
+      return { success: true, role: detectedRole };
       
     } catch (err) {
       console.error('Login error:', err);
@@ -121,31 +223,69 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Optional: verify role on-chain (non-blocking)
-  useEffect(() => {
-    const verifyRole = async () => {
-      try {
-        if (!user?.walletAddress && !user?.address) return;
-        const addr = user.walletAddress || user.address;
-        // Example role checks; adjust to your contract APIs
-        if (userRole === 'hospital') {
-          const c = await getHospitalContract();
-          await c.getHospitalDoctors(); // probe call
-        } else if (userRole === 'doctor') {
-          const c = await getDoctorContract();
-          // e.g., await c.isRegistered(addr)
-        } else if (userRole === 'patient') {
-          const c = await getPatientContract();
-          // e.g., await c.isRegistered(addr)
-        }
-      } catch (e) {
-        // Keep UI usable; log for debugging
-        console.warn('Role verification failed (non-blocking):', e?.message || e);
+  // Register function - registers user on blockchain
+  const register = async (role, registrationData) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      // Ensure correct network
+      await ensureCorrectNetwork();
+
+      // Connect wallet
+      const { accounts } = await connectWallet();
+      
+      if (!accounts || accounts.length === 0) {
+        throw new Error('No wallet accounts found. Please connect MetaMask.');
       }
-    };
-    verifyRole();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userRole, user?.walletAddress, user?.address]);
+
+      const address = accounts[0];
+      setWalletAddress(address);
+
+      // Check if already registered
+      const existingRole = await detectUserRole(address);
+      if (existingRole) {
+        throw new Error(`Wallet is already registered as ${existingRole}. Please login instead.`);
+      }
+
+      // Register based on role
+      if (role === 'patient') {
+        const { name, dateOfBirth, bloodGroup } = registrationData;
+        await patientService.registerPatient(name, dateOfBirth, bloodGroup);
+      } else if (role === 'hospital') {
+        const { name, registrationNumber } = registrationData;
+        await hospitalService.registerHospital(name, registrationNumber);
+      } else if (role === 'doctor') {
+        // Doctors must be added by hospital first
+        throw new Error('Doctors must be registered by a hospital administrator. Please contact your hospital.');
+      } else {
+        throw new Error('Invalid role');
+      }
+
+      // Set role and authenticate
+      setUserRole(role);
+      setIsAuthenticated(true);
+      await loadUserProfile(address, role);
+
+      // Persist to localStorage
+      localStorage.setItem('wallet_address', address);
+      localStorage.setItem('auth_role', role);
+
+      console.log('Registered and logged in as:', address, role);
+
+      // Navigate to appropriate dashboard
+      navigate(`/${role}/dashboard`);
+
+      return { success: true, role };
+      
+    } catch (err) {
+      console.error('Registration error:', err);
+      setError(err.message || 'Registration failed');
+      return { success: false, error: err.message };
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Logout function
   const logout = () => {
@@ -155,13 +295,11 @@ export const AuthProvider = ({ children }) => {
       setUser(null);
       setUserRole(null);
       setUserProfile(null);
-      setToken(null);
+      setWalletAddress(null);
       setError(null);
 
       // Clear localStorage
-      localStorage.removeItem('auth_token');
-      localStorage.removeItem('auth_user');
-      localStorage.removeItem('auth_role');
+      clearAuthState();
 
       console.log('Logged out');
 
@@ -174,15 +312,24 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Clear auth state
+  const clearAuthState = () => {
+    localStorage.removeItem('wallet_address');
+    localStorage.removeItem('auth_role');
+    localStorage.removeItem('auth_user');
+    localStorage.removeItem('auth_token');
+  };
+
   // Update user profile
-  const updateProfile = (profileData) => {
+  const updateProfile = async (profileData) => {
     try {
-      // TODO: Replace with actual API call
-      setUserProfile(prev => ({ ...prev, ...profileData }));
+      if (userRole === 'doctor') {
+        const doctorService = (await import('../services/doctorService')).default;
+        await doctorService.updateProfile(profileData.name, profileData.specialization);
+      }
       
-      // Update localStorage
-      const updatedUser = { ...user, ...profileData };
-      localStorage.setItem('auth_user', JSON.stringify(updatedUser));
+      // Reload profile
+      await loadUserProfile(walletAddress, userRole);
       
       console.log('Profile updated:', profileData);
       return { success: true };
@@ -204,7 +351,7 @@ export const AuthProvider = ({ children }) => {
 
   // Check if user is authenticated
   const checkAuth = () => {
-    return isAuthenticated && token !== null;
+    return isAuthenticated && walletAddress !== null;
   };
 
   // Clear error
@@ -214,21 +361,20 @@ export const AuthProvider = ({ children }) => {
 
   // Get user display name
   const getUserDisplayName = () => {
-    if (!userProfile) return null;
+    if (!userProfile) return walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : null;
     
     if (userRole === 'patient') {
-      return `${userProfile.firstName} ${userProfile.lastName}`;
+      return userProfile.name || `${walletAddress?.slice(0, 6)}...${walletAddress?.slice(-4)}`;
     } else if (userRole === 'doctor') {
-      return `Dr. ${userProfile.firstName} ${userProfile.lastName}`;
+      return userProfile.name ? `Dr. ${userProfile.name}` : `${walletAddress?.slice(0, 6)}...${walletAddress?.slice(-4)}`;
     } else if (userRole === 'hospital') {
-      return userProfile.name;
+      return userProfile.name || `${walletAddress?.slice(0, 6)}...${walletAddress?.slice(-4)}`;
     }
-    return user?.email || 'User';
+    return walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : 'User';
   };
 
   // Get user avatar (placeholder)
   const getUserAvatar = () => {
-    // TODO: Replace with actual avatar URL from user profile
     return null;
   };
 
@@ -239,7 +385,7 @@ export const AuthProvider = ({ children }) => {
     user,
     userRole,
     userProfile,
-    token,
+    walletAddress,
     error,
     
     // Computed
@@ -251,11 +397,13 @@ export const AuthProvider = ({ children }) => {
     
     // Functions
     login,
+    register,
     logout,
     updateProfile,
     hasRole,
     checkAuth,
     clearError,
+    detectUserRole,
   };
 
   return (
