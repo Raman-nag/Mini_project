@@ -24,41 +24,55 @@ let PatientManagementABI = [];
 
 // Dynamic loader function - will be called when needed
 export const loadABIs = async () => {
-  try {
-    const DoctorABI = await import('./abis/DoctorManagement.json');
-    DoctorManagementABI.length = 0;
-    DoctorManagementABI.push(...(DoctorABI.default?.abi || DoctorABI.default || DoctorABI.abi || DoctorABI || []));
-  } catch (e) {
-    console.warn('DoctorManagement ABI not found. Run: node backend/scripts/copy-abis.js');
-  }
+  // Use dynamic imports with error handling - Vite will handle this at build time
+  // If files don't exist, the import will fail gracefully
+  const loadABI = async (contractName) => {
+    try {
+      // Try to import the ABI file
+      const module = await import(`./abis/${contractName}.json`);
+      const abi = module.default?.abi || module.default || module.abi || module;
+      
+      // Update the corresponding ABI array
+      switch(contractName) {
+        case 'DoctorManagement':
+          DoctorManagementABI.length = 0;
+          DoctorManagementABI.push(...(Array.isArray(abi) ? abi : []));
+          break;
+        case 'PatientManagement':
+          PatientManagementABI.length = 0;
+          PatientManagementABI.push(...(Array.isArray(abi) ? abi : []));
+          break;
+        case 'HospitalManagement':
+          HospitalManagementABI.length = 0;
+          HospitalManagementABI.push(...(Array.isArray(abi) ? abi : []));
+          break;
+        case 'EMRSystem':
+          EMRSystemABI.length = 0;
+          EMRSystemABI.push(...(Array.isArray(abi) ? abi : []));
+          break;
+      }
+      return true;
+    } catch (e) {
+      // File doesn't exist yet - this is expected before deployment
+      console.warn(`${contractName} ABI not found. Run: node backend/scripts/copy-abis.js after deployment.`);
+      return false;
+    }
+  };
 
-  try {
-    const PatientABI = await import('./abis/PatientManagement.json');
-    PatientManagementABI.length = 0;
-    PatientManagementABI.push(...(PatientABI.default?.abi || PatientABI.default || PatientABI.abi || PatientABI || []));
-  } catch (e) {
-    console.warn('PatientManagement ABI not found. Run: node backend/scripts/copy-abis.js');
-  }
-
-  try {
-    const HospitalABI = await import('./abis/HospitalManagement.json');
-    HospitalManagementABI.length = 0;
-    HospitalManagementABI.push(...(HospitalABI.default?.abi || HospitalABI.default || HospitalABI.abi || HospitalABI || []));
-  } catch (e) {
-    console.warn('HospitalManagement ABI not found. Run: node backend/scripts/copy-abis.js');
-  }
-
-  try {
-    const EMRABI = await import('./abis/EMRSystem.json');
-    EMRSystemABI.length = 0;
-    EMRSystemABI.push(...(EMRABI.default?.abi || EMRABI.default || EMRABI.abi || EMRABI || []));
-  } catch (e) {
-    console.warn('EMRSystem ABI not found. Run: node backend/scripts/copy-abis.js');
-  }
+  // Load all ABIs
+  await Promise.all([
+    loadABI('DoctorManagement'),
+    loadABI('PatientManagement'),
+    loadABI('HospitalManagement'),
+    loadABI('EMRSystem')
+  ]);
 };
 
 // Load ABIs asynchronously (non-blocking)
-loadABIs().catch(err => console.warn('Failed to load ABIs:', err));
+// Don't await - let it load in background
+loadABIs().catch(() => {
+  // Silently fail - ABIs will be loaded when files are available
+});
 
 export const CONTRACT_ADDRESSES = {
   // Replace with real deployed addresses per network
