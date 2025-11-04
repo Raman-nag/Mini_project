@@ -5,65 +5,88 @@ const hre = require('hardhat');
 async function main() {
   const [deployer] = await hre.ethers.getSigners();
   console.log('Deploying contracts with account:', deployer.address);
+  console.log('Account balance:', (await hre.ethers.provider.getBalance(deployer.address)).toString());
   
   const deployments = {};
 
-  // 1. Deploy AccessControl
-  const AccessControl = await hre.ethers.getContractFactory('AccessControl');
-  const accessControl = await AccessControl.deploy();
-  await accessControl.deployed();
-  console.log('AccessControl deployed to:', accessControl.address);
-
-  // 2. Deploy DoctorManagement (needs AccessControl)
+  // 1. Deploy DoctorManagement first (no dependencies)
+  console.log('\n1. Deploying DoctorManagement...');
   const DoctorManagement = await hre.ethers.getContractFactory('DoctorManagement');
-  const doctorManagement = await DoctorManagement.deploy(accessControl.address);
-  await doctorManagement.deployed();
-  console.log('DoctorManagement deployed to:', doctorManagement.address);
+  const doctorManagement = await DoctorManagement.deploy();
+  await doctorManagement.waitForDeployment();
+  const doctorManagementAddress = await doctorManagement.getAddress();
+  console.log('DoctorManagement deployed to:', doctorManagementAddress);
+  deployments.DoctorManagement = doctorManagementAddress;
 
-  // 3. Deploy PatientManagement (needs DoctorManagement, AccessControl)
+  // 2. Deploy PatientManagement (needs DoctorManagement)
+  console.log('\n2. Deploying PatientManagement...');
   const PatientManagement = await hre.ethers.getContractFactory('PatientManagement');
-  const patientManagement = await PatientManagement.deploy(doctorManagement.address, accessControl.address);
-  await patientManagement.deployed();
-  console.log('PatientManagement deployed to:', patientManagement.address);
+  const patientManagement = await PatientManagement.deploy(doctorManagementAddress);
+  await patientManagement.waitForDeployment();
+  const patientManagementAddress = await patientManagement.getAddress();
+  console.log('PatientManagement deployed to:', patientManagementAddress);
+  deployments.PatientManagement = patientManagementAddress;
 
-  // 4. Deploy HospitalManagement (needs DoctorManagement, PatientManagement, AccessControl)
+  // 3. Deploy HospitalManagement (needs DoctorManagement and PatientManagement)
+  console.log('\n3. Deploying HospitalManagement...');
   const HospitalManagement = await hre.ethers.getContractFactory('HospitalManagement');
   const hospitalManagement = await HospitalManagement.deploy(
-    doctorManagement.address,
-    patientManagement.address,
-    accessControl.address
+    doctorManagementAddress,
+    patientManagementAddress
   );
-  await hospitalManagement.deployed();
-  console.log('HospitalManagement deployed to:', hospitalManagement.address);
+  await hospitalManagement.waitForDeployment();
+  const hospitalManagementAddress = await hospitalManagement.getAddress();
+  console.log('HospitalManagement deployed to:', hospitalManagementAddress);
+  deployments.HospitalManagement = hospitalManagementAddress;
 
-  // 5. Deploy EMRSystem (connects all sub-contracts)
+  // 4. Deploy EMRSystem (connects all sub-contracts)
+  console.log('\n4. Deploying EMRSystem...');
   const EMRSystem = await hre.ethers.getContractFactory('EMRSystem');
-  const emrSystem = await EMRSystem.deploy(hospitalManagement.address, doctorManagement.address, patientManagement.address);
-  await emrSystem.deployed();
-  console.log('EMRSystem deployed to:', emrSystem.address);
+  const emrSystem = await EMRSystem.deploy(
+    hospitalManagementAddress,
+    doctorManagementAddress,
+    patientManagementAddress
+  );
+  await emrSystem.waitForDeployment();
+  const emrSystemAddress = await emrSystem.getAddress();
+  console.log('EMRSystem deployed to:', emrSystemAddress);
+  deployments.EMRSystem = emrSystemAddress;
 
-  console.log('\nDeployment summary:');
-  console.log('AccessControl:', accessControl.address);
-  console.log('DoctorManagement:', doctorManagement.address);
-  console.log('PatientManagement:', patientManagement.address);
-  console.log('HospitalManagement:', hospitalManagement.address);
-  console.log('EMRSystem:', emrSystem.address);
+  console.log('\n=== Deployment Summary ===');
+  console.log('DoctorManagement:', doctorManagementAddress);
+  console.log('PatientManagement:', patientManagementAddress);
+  console.log('HospitalManagement:', hospitalManagementAddress);
+  console.log('EMRSystem:', emrSystemAddress);
+  console.log('==========================\n');
 
-  // Optional: set up initial roles (grant deployer ADMIN role is already set in constructor)
-  // Example: grant HOSPITAL_ROLE to deployer for testing
-  try {
-    const HOSPITAL_ROLE = await accessControl.HOSPITAL_ROLE();
-    const DOCTOR_ROLE = await accessControl.DOCTOR_ROLE();
-    const PATIENT_ROLE = await accessControl.PATIENT_ROLE();
+  // Save deployment addresses to file
+  const deploymentPath = path.join(__dirname, '..', 'deployments.json');
+  fs.writeFileSync(
+    deploymentPath,
+    JSON.stringify(deployments, null, 2)
+  );
+  console.log('Deployment addresses saved to:', deploymentPath);
 
-    // Grant all roles to deployer for initial testing (remove or restrict in production)
-    await (await accessControl.grantRole(HOSPITAL_ROLE, deployer.address)).wait();
-    await (await accessControl.grantRole(DOCTOR_ROLE, deployer.address)).wait();
-    await (await accessControl.grantRole(PATIENT_ROLE, deployer.address)).wait();
-    console.log('Granted HOSPITAL/DOCTOR/PATIENT roles to deployer for testing');
-  } catch (err) {
-    console.warn('Role assignment skipped or failed:', err.message || err);
+  // Copy ABIs to frontend
+  const frontendAbiPath = path.join(__dirname, '..', '..', 'frontend', 'src', 'config', 'abis');
+  if (!fs.existsSync(frontendAbiPath)) {
+    fs.mkdirSync(frontendAbiPath, { recursive: true });
   }
+
+  const artifactsPath = path.join(__dirname, '..', 'artifacts', 'contracts');
+  const contractNames = ['DoctorManagement', 'PatientManagement', 'HospitalManagement', 'EMRSystem'];
+  
+  contractNames.forEach(name => {
+    const artifactPath = path.join(artifactsPath, `${name}.sol`, `${name}.json`);
+    if (fs.existsSync(artifactPath)) {
+      const artifact = JSON.parse(fs.readFileSync(artifactPath, 'utf8'));
+      const abiPath = path.join(frontendAbiPath, `${name}.json`);
+      fs.writeFileSync(abiPath, JSON.stringify(artifact.abi, null, 2));
+      console.log(`ABI copied for ${name}`);
+    }
+  });
+
+  return deployments;
 }
 
 main()
