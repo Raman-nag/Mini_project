@@ -1,6 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
+import { Buffer } from 'buffer'
 import App from './App.jsx'
 import './styles/globals.css'
 import './styles/variables.css'
@@ -8,6 +9,10 @@ import './styles/animations.css'
 import './styles/components/cards.css'
 import './styles/components/dashboard.css'
 import './styles/components/forms.css'
+
+// Polyfill for buffer (needed for ethers.js)
+window.Buffer = Buffer
+globalThis.Buffer = Buffer
 
 // Context providers
 import { ThemeProvider } from './contexts/ThemeContext'

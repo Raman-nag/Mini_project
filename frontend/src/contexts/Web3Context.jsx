@@ -48,6 +48,9 @@ export const Web3Provider = ({ children }) => {
     }
   }, []);
 
+  // Ref to store unsubscribe function
+  const unsubscribeRef = React.useRef(null);
+
   // Get network name by chain ID
   const getNetworkName = (chainId) => {
     const networks = {
@@ -113,8 +116,6 @@ export const Web3Provider = ({ children }) => {
   };
 
   // Disconnect wallet
-  const unsubscribeRef = React.useRef(null);
-
   const disconnectWallet = () => {
     setIsConnected(false);
     setAccount(null);

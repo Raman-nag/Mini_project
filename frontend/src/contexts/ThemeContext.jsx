@@ -13,14 +13,16 @@ export const useTheme = () => {
 export const ThemeProvider = ({ children }) => {
   const [theme, setTheme] = useState(() => {
     // Check localStorage first, then system preference
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme) {
-      return savedTheme;
-    }
-    
-    // Check system preference
-    if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      return 'dark';
+    if (typeof window !== 'undefined') {
+      const savedTheme = localStorage.getItem('theme');
+      if (savedTheme) {
+        return savedTheme;
+      }
+      
+      // Check system preference
+      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        return 'dark';
+      }
     }
     
     return 'light';
@@ -39,7 +41,9 @@ export const ThemeProvider = ({ children }) => {
     }
     
     // Save to localStorage
-    localStorage.setItem('theme', theme);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('theme', theme);
+    }
     
     // Set loading to false after theme is applied
     setIsLoading(false);
@@ -47,11 +51,13 @@ export const ThemeProvider = ({ children }) => {
 
   useEffect(() => {
     // Listen for system theme changes
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     
     const handleChange = (e) => {
       // Only update if user hasn't manually set a preference
-      if (!localStorage.getItem('theme')) {
+      if (typeof window !== 'undefined' && !localStorage.getItem('theme')) {
         setTheme(e.matches ? 'dark' : 'light');
       }
     };
