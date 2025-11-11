@@ -31,6 +31,45 @@ class DoctorService {
   }
 
   /**
+   * Get prescriptions authored by a specific doctor, scanning recent records
+   * @param {string} doctorAddress
+   * @param {number} maxScan - maximum number of latest records to scan
+   * @returns {Promise<{success:boolean, count:number, prescriptions:Array}>}
+   */
+  async getDoctorPrescriptions(doctorAddress, maxScan = 1000) {
+    try {
+      const contract = await getDoctorContract();
+      let total = 0;
+      try {
+        const rc = await contract.recordCount();
+        total = Number(rc) || 0;
+      } catch {
+        total = 0;
+      }
+
+      const target = (doctorAddress || '').toLowerCase();
+      const prescriptions = [];
+      const scan = Math.max(0, Math.min(maxScan, total));
+      for (let i = total - 1; i >= 0 && (total - 1 - i) < scan; i--) {
+        try {
+          const record = await contract.getRecordById(i);
+          const doc = (record?.doctorAddress || '').toLowerCase();
+          const prescription = record?.prescription || '';
+          if (doc === target && prescription.trim().length > 0) {
+            prescriptions.push(this.formatRecord(record, i));
+          }
+        } catch {
+        }
+      }
+      prescriptions.sort((a, b) => b.timestamp - a.timestamp);
+      return { success: true, count: prescriptions.length, prescriptions };
+    } catch (error) {
+      console.error('Doctor Service - Get Doctor Prescriptions Error:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Create a new medical record on blockchain
    * @param {string} patientAddress - Patient's wallet address
    * @param {Object} recordData - Medical record data
@@ -44,9 +83,9 @@ class DoctorService {
         throw new Error('Diagnosis is required');
       }
 
-      // Upload files to IPFS if provided
-      let ipfsHash = '';
-      if (files && files.length > 0) {
+      // Prefer an IPFS hash passed in recordData; fall back to uploading files
+      let ipfsHash = (recordData && recordData.ipfsHash) || '';
+      if (!ipfsHash && files && files.length > 0) {
         try {
           ipfsHash = await uploadToIPFS(files);
           console.log('Files uploaded to IPFS:', ipfsHash);
@@ -54,6 +93,10 @@ class DoctorService {
           console.error('IPFS upload error:', ipfsError);
           throw new Error('Failed to upload files to IPFS');
         }
+      }
+
+      if (!ipfsHash || typeof ipfsHash !== 'string' || ipfsHash.trim().length === 0) {
+        throw new Error('IPFS hash required');
       }
 
       // Prepare data for blockchain
@@ -72,7 +115,8 @@ class DoctorService {
         symptoms,
         prescription,
         treatmentPlan,
-        ipfsHash
+        ipfsHash,
+        { gasLimit: 5_000_000 }
       );
       
       const receipt = await sendTx(Promise.resolve(tx));

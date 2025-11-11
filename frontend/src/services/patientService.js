@@ -28,6 +28,164 @@ class PatientService {
       console.error('Patient Service - Register Error:', error);
       throw error;
     }
+
+  }
+
+  /**
+   * Doctor requests access to a patient (call from doctor UI)
+   */
+  async requestAccess(patientAddress) {
+    try {
+      const contract = await getPatientContract();
+      const tx = await contract.requestAccess(patientAddress);
+      const receipt = await sendTx(Promise.resolve(tx));
+      return { success: true, receipt };
+    } catch (error) {
+      console.error('Patient Service - Request Access Error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Doctor cancels their own pending request
+   */
+  async cancelRequest(patientAddress) {
+    try {
+      const contract = await getPatientContract();
+      const tx = await contract.cancelRequest(patientAddress);
+      const receipt = await sendTx(Promise.resolve(tx));
+      return { success: true, receipt };
+    } catch (error) {
+      console.error('Patient Service - Cancel Request Error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Patient rejects a pending request from a doctor
+   */
+  async rejectRequest(doctorAddress) {
+    try {
+      const contract = await getPatientContract();
+      const tx = await contract.rejectRequest(doctorAddress);
+      const receipt = await sendTx(Promise.resolve(tx));
+      return { success: true, receipt };
+    } catch (error) {
+      console.error('Patient Service - Reject Request Error:', error);
+      throw error;
+    }
+  }
+
+  async getAccessList() {
+    try {
+      const contract = await getPatientContract();
+      const signer = await contract.signer;
+      const patient = await signer.getAddress();
+
+      const grantedFilter = contract.filters.AccessGranted(patient, null);
+      const revokedFilter = contract.filters.AccessRevoked(patient, null);
+      // Optional: AccessRequested(patient, doctor) may not exist; handle gracefully
+      let requestedFilter = null;
+      try {
+        if (contract.filters.AccessRequested) {
+          requestedFilter = contract.filters.AccessRequested(patient, null);
+        }
+      } catch {}
+
+      const [grantedEvents, revokedEvents, requestedEvents] = await Promise.all([
+        contract.queryFilter(grantedFilter, 0, 'latest'),
+        contract.queryFilter(revokedFilter, 0, 'latest'),
+        requestedFilter ? contract.queryFilter(requestedFilter, 0, 'latest') : Promise.resolve([])
+      ]);
+
+      // Helper to get block timestamp
+      const provider = signer.provider;
+      const blockTsCache = new Map();
+      const getBlockTs = async (blockNumber) => {
+        if (blockTsCache.has(blockNumber)) return blockTsCache.get(blockNumber);
+        const block = await provider.getBlock(blockNumber);
+        const ts = Number(block?.timestamp || 0);
+        blockTsCache.set(blockNumber, ts);
+        return ts;
+      };
+
+      const accessMap = new Map();
+
+      // Prefer direct getter if available to assemble pending list
+      let pendingAddresses = [];
+      try {
+        if (typeof contract.getPendingRequests === 'function') {
+          const arr = await contract.getPendingRequests(patient);
+          pendingAddresses = Array.isArray(arr) ? arr : [];
+        }
+      } catch {}
+      // Seed map with pending getters
+      for (const doc of pendingAddresses) {
+        try {
+          const key = String(doc).toLowerCase();
+          const prev = accessMap.get(key) || { doctorAddress: doc, grantedAt: 0, grantedAtTs: 0, revokedAt: 0, revokedAtTs: 0, status: 'Pending' };
+          accessMap.set(key, { ...prev, status: 'Pending' });
+        } catch {}
+      }
+
+      for (const ev of requestedEvents) {
+        try {
+          const doctor = ev.args?.requestedBy || ev.args?.doctor || ev.args?.[1];
+          const bn = Number(ev.blockNumber || 0);
+          const ts = await getBlockTs(bn);
+          const key = String(doctor).toLowerCase();
+          const prev = accessMap.get(key) || { doctorAddress: doctor, grantedAt: 0, grantedAtTs: 0, revokedAt: 0, revokedAtTs: 0, status: 'Pending' };
+          accessMap.set(key, { ...prev, status: 'Pending', requestedAt: bn, requestedAtTs: ts });
+        } catch {}
+      }
+
+      for (const ev of grantedEvents) {
+        try {
+          const doctor = ev.args?.grantedTo;
+          const bn = Number(ev.blockNumber || 0);
+          const ts = await getBlockTs(bn);
+          const key = String(doctor).toLowerCase();
+          const prev = accessMap.get(key) || { doctorAddress: doctor, revokedAt: 0, revokedAtTs: 0, status: 'Active' };
+          accessMap.set(key, { ...prev, doctorAddress: doctor, grantedAt: bn, grantedAtTs: ts, status: 'Active' });
+        } catch {}
+      }
+      for (const ev of revokedEvents) {
+        try {
+          const doctor = ev.args?.revokedFrom;
+          const bn = Number(ev.blockNumber || 0);
+          const ts = await getBlockTs(bn);
+          const key = String(doctor).toLowerCase();
+          const prev = accessMap.get(key) || { doctorAddress: doctor, grantedAt: 0, grantedAtTs: 0 };
+          accessMap.set(key, { ...prev, revokedAt: bn, revokedAtTs: ts, status: 'Revoked' });
+        } catch {}
+      }
+
+      // Determine current status using live hasAccess where possible
+      const entries = Array.from(accessMap.values());
+      for (const item of entries) {
+        try {
+          const current = await contract.hasAccess(item.doctorAddress, patient);
+          if (current) {
+            item.status = 'Active';
+          } else if (!item.status || item.status === 'Pending') {
+            // If never granted but requested, keep Pending; else mark Revoked
+            item.status = item.requestedAt && !item.grantedAt ? 'Pending' : 'Revoked';
+          }
+        } catch {
+          // Keep derived status
+        }
+      }
+
+      const accessList = entries.sort((a, b) => {
+        const atA = a.grantedAtTs || a.requestedAtTs || 0;
+        const atB = b.grantedAtTs || b.requestedAtTs || 0;
+        return atB - atA;
+      });
+      return { success: true, accessList };
+    } catch (error) {
+      console.error('Patient Service - Get Access List Error:', error);
+      throw error;
+    }
   }
 
   /**
@@ -84,7 +242,9 @@ class PatientService {
           prescription: record.prescription,
           doctor: record.doctorName,
           date: record.date,
-          diagnosis: record.diagnosis
+          diagnosis: record.diagnosis,
+          ipfsHash: record.ipfsHash,
+          doctorAddress: record.doctorAddress
         }));
       
       return {
@@ -154,9 +314,15 @@ class PatientService {
    */
   async hasAccess(requesterAddress, patientAddress) {
     try {
+      const req = typeof requesterAddress === 'string' ? requesterAddress.trim() : '';
+      const pat = typeof patientAddress === 'string' ? patientAddress.trim() : '';
+      const isHex = (a) => /^0x[a-fA-F0-9]{40}$/.test(a);
+      if (!isHex(req) || !isHex(pat)) {
+        return false;
+      }
       const contract = await getPatientContract();
-      const hasAccess = await contract.hasAccess(requesterAddress, patientAddress);
-      return hasAccess;
+      const result = await contract.hasAccess(req, pat);
+      return Boolean(result);
     } catch (error) {
       console.error('Patient Service - Check Access Error:', error);
       return false;
