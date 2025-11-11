@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
+// Stable empty array to avoid changing reference across renders
+const EMPTY_SUGGESTIONS = Object.freeze([]);
+
 const SearchBar = ({
   placeholder = 'Search...',
   onSearch,
@@ -11,10 +14,12 @@ const SearchBar = ({
   size = 'md',
   variant = 'default',
   className = '',
-  suggestions = [],
+  suggestions = EMPTY_SUGGESTIONS,
   onSuggestionClick,
   showSuggestions = true,
   maxSuggestions = 5,
+  value,
+  initialValue,
   ...props
 }) => {
   const [query, setQuery] = useState('');
@@ -22,6 +27,29 @@ const SearchBar = ({
   const [filteredSuggestions, setFilteredSuggestions] = useState([]);
   const inputRef = useRef(null);
   const debounceRef = useRef(null);
+  const onSearchRef = useRef(onSearch);
+
+  // Keep latest onSearch in a ref to avoid effect loops when parent recreates the function each render
+  useEffect(() => {
+    onSearchRef.current = onSearch;
+  }, [onSearch]);
+
+  // Sync external controlled value if provided
+  useEffect(() => {
+    if (typeof value === 'string' && value !== query) {
+      setQuery(value);
+    }
+    // only depends on value; guard prevents loops
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
+
+  // Apply initial value once or when it changes
+  useEffect(() => {
+    if (typeof initialValue === 'string' && initialValue !== query) {
+      setQuery(initialValue);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialValue]);
 
   // Debounced search effect
   useEffect(() => {
@@ -30,8 +58,8 @@ const SearchBar = ({
     }
 
     debounceRef.current = setTimeout(() => {
-      if (onSearch && query.trim()) {
-        onSearch(query.trim());
+      if (onSearchRef.current && query.trim()) {
+        onSearchRef.current(query.trim());
       }
     }, debounceMs);
 
@@ -40,21 +68,25 @@ const SearchBar = ({
         clearTimeout(debounceRef.current);
       }
     };
-  }, [query, onSearch, debounceMs]);
+  }, [query, debounceMs]);
 
   // Filter suggestions based on query
   useEffect(() => {
-    if (query.trim() && suggestions.length > 0) {
-      const filtered = suggestions
-        .filter(suggestion => 
-          suggestion.toLowerCase().includes(query.toLowerCase())
+    const source = Array.isArray(suggestions) ? suggestions : EMPTY_SUGGESTIONS;
+    if (query.trim() && source.length > 0) {
+      const filtered = source
+        .filter(suggestion =>
+          String(suggestion).toLowerCase().includes(query.toLowerCase())
         )
         .slice(0, maxSuggestions);
-      setFilteredSuggestions(filtered);
+      const same =
+        filtered.length === filteredSuggestions.length &&
+        filtered.every((v, i) => v === filteredSuggestions[i]);
+      if (!same) setFilteredSuggestions(filtered);
     } else {
-      setFilteredSuggestions([]);
+      if (filteredSuggestions.length !== 0) setFilteredSuggestions([]);
     }
-  }, [query, suggestions, maxSuggestions]);
+  }, [query, suggestions, maxSuggestions, filteredSuggestions]);
 
   const handleInputChange = (e) => {
     setQuery(e.target.value);

@@ -29,6 +29,7 @@ const DoctorDashboard = lazy(() => import('../pages/DoctorDashboard'));
 const CreateRecord = lazy(() => import('../components/doctor/CreateRecord'));
 const MyPatients = lazy(() => import('../components/doctor/MyPatients'));
 const PrescriptionForm = lazy(() => import('../components/doctor/PrescriptionForm'));
+const DoctorPrescriptions = lazy(() => import('../components/doctor/DoctorPrescriptions'));
 const ViewPatientHistory = lazy(() => import('../components/doctor/ViewPatientHistory'));
 const PatientDashboard = lazy(() => import('../pages/PatientDashboard'));
 const NotFound = lazy(() => import('../pages/NotFound'));
@@ -174,6 +175,16 @@ const AppRouter = () => {
                     <DashboardLayout>
                       <RouteWrapper>
                         <PrescriptionForm />
+                      </RouteWrapper>
+                    </DashboardLayout>
+                  }
+                />
+                <Route
+                  path="/doctor/prescriptions"
+                  element={
+                    <DashboardLayout>
+                      <RouteWrapper>
+                        <DoctorPrescriptions />
                       </RouteWrapper>
                     </DashboardLayout>
                   }

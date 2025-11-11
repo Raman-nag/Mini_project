@@ -40,7 +40,8 @@ const DashboardLayout = ({ children, userRole, userProfile, walletAddress, netwo
       case 'doctor':
         return [
           ...baseItems,
-          { name: 'My Patients', href: '/doctor/patients', icon: 'HeartIcon' },
+          { name: 'My Patients', href: '/doctor/my-patients', icon: 'HeartIcon' },
+          { name: 'Get Patient Details', href: '/doctor/get-patient-details', icon: 'UserCircleIcon' },
           { name: 'Create Record', href: '/doctor/create-record', icon: 'PlusIcon' },
           { name: 'Records', href: '/doctor/records', icon: 'DocumentTextIcon' },
           { name: 'Prescriptions', href: '/doctor/prescriptions', icon: 'ClipboardDocumentListIcon' },
@@ -50,9 +51,9 @@ const DashboardLayout = ({ children, userRole, userProfile, walletAddress, netwo
       case 'patient':
         return [
           ...baseItems,
-          { name: 'Medical History', href: '/patient/history', icon: 'DocumentTextIcon' },
+          { name: 'Medical History', href: '/patient/medical-history', icon: 'DocumentTextIcon' },
           { name: 'Prescriptions', href: '/patient/prescriptions', icon: 'ClipboardDocumentListIcon' },
-          { name: 'Grant Access', href: '/patient/grant-access', icon: 'KeyIcon' },
+          { name: 'Grant Access', href: '/patient/manage-access', icon: 'KeyIcon' },
           { name: 'Appointments', href: '/patient/appointments', icon: 'CalendarIcon' },
           { name: 'Settings', href: '/patient/settings', icon: 'Cog6ToothIcon' }
         ];
@@ -211,10 +212,25 @@ const DashboardLayout = ({ children, userRole, userProfile, walletAddress, netwo
             <div className="flex-1 flex">
               <div className="w-full flex md:ml-0">
                 <div className="relative w-full text-slate-400 dark:text-slate-500 focus-within:text-slate-600 dark:focus-within:text-slate-300">
-                  <div className="flex items-center h-full">
-                    <span className="text-lg font-medium text-slate-900 dark:text-slate-100">
-                      Welcome back, {userProfile?.firstName || 'User'}
-                    </span>
+                  <div className="flex flex-col justify-center h-full">
+                    {(() => {
+                      const first = (userProfile?.firstName || '').trim();
+                      const last = (userProfile?.lastName || '').trim();
+                      const full = [first, last].filter(Boolean).join(' ').trim();
+                      const shortWallet = walletAddress ? `${walletAddress.slice(0,6)}...${walletAddress.slice(-4)}` : 'User';
+                      const name = userRole === 'doctor'
+                        ? (full ? `Dr. ${full}` : shortWallet)
+                        : (full || shortWallet);
+                      const missingName = userRole === 'doctor' && !full;
+                      return (
+                        <>
+                          <span className="text-lg font-medium text-slate-900 dark:text-slate-100">Welcome back, {name}</span>
+                          {missingName && (
+                            <span className="text-xs text-slate-500 dark:text-slate-400">Profile name not found. Please contact admin to complete your registration.</span>
+                          )}
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
               </div>
