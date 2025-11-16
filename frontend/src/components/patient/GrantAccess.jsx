@@ -112,6 +112,10 @@ const GrantAccess = () => {
     purpose: ''
   });
 
+  // Tabs and search state
+  const [activeTab, setActiveTab] = useState('Pending'); // Pending | Granted | Rejected
+  const [search, setSearch] = useState({ Pending: '', Granted: '', Rejected: '' });
+
   const [showRevokeModal, setShowRevokeModal] = useState(false);
   const [selectedAccess, setSelectedAccess] = useState(null);
 
@@ -268,6 +272,32 @@ const GrantAccess = () => {
         </button>
       </div>
 
+      {/* Tabs */}
+      <div className="bg-white dark:bg-gray-900 rounded-lg shadow">
+        <div className="px-4 pt-4">
+          <div className="flex items-center space-x-2">
+            {['Pending','Granted','Rejected'].map(t => (
+              <button
+                key={t}
+                onClick={() => setActiveTab(t)}
+                className={`px-3 py-2 text-sm rounded-lg border ${activeTab === t ? 'border-blue-500 text-blue-700 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'}`}
+              >
+                {t}
+              </button>
+            ))}
+            <div className="ml-auto">
+              <input
+                type="text"
+                value={search[activeTab]}
+                onChange={(e) => setSearch(prev => ({ ...prev, [activeTab]: e.target.value }))}
+                placeholder={`Search ${activeTab.toLowerCase()} by address...`}
+                className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Info Alert */}
       <Alert type="info" title="Access Control" dismissible>
         You have full control over who can access your medical records. All access grants are
@@ -298,12 +328,18 @@ const GrantAccess = () => {
       ) : (
         <div className="space-y-6">
           {(() => {
-            const pending = accessList.filter(a => a.status === 'Pending');
-            const active = accessList.filter(a => a.status === 'Active');
-            const revoked = accessList.filter(a => a.status === 'Revoked');
+            const pendingAll = accessList.filter(a => a.status === 'Pending');
+            const activeAll = accessList.filter(a => a.status === 'Active');
+            const revokedAll = accessList.filter(a => a.status === 'Revoked');
+
+            const matches = (addr, q) => String(addr || '').toLowerCase().includes(String(q || '').toLowerCase());
+            const pending = pendingAll.filter(a => matches(a.doctorAddress, search.Pending));
+            const active = activeAll.filter(a => matches(a.doctorAddress, search.Granted));
+            const revoked = revokedAll.filter(a => matches(a.doctorAddress, search.Rejected));
+
             return (
               <>
-                {pending.length > 0 && (
+                {activeTab === 'Pending' && (
                   <div className="space-y-3">
                     <h3 className="text-base font-semibold text-gray-900 dark:text-white">Doctors who are waiting for your access permission</h3>
                     {pending.map((access, index) => (
@@ -351,6 +387,24 @@ const GrantAccess = () => {
                               Approve
                             </button>
                             <button
+                              onClick={async () => {
+                                try {
+                                  const res = await patientService.rejectRequest(access.doctorAddress);
+                                  if (res?.success) {
+                                    showToast('Request rejected on blockchain', 'success');
+                                    await loadAccessList();
+                                  } else {
+                                    showToast('Failed to reject request', 'error');
+                                  }
+                                } catch (e) {
+                                  showToast(e?.message || 'Failed to reject request', 'error');
+                                }
+                              }}
+                              className="inline-flex items-center px-3 py-2 border border-red-300 dark:border-red-700 rounded-lg text-sm font-medium text-red-700 dark:text-red-400 bg-white dark:bg-gray-800 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                            >
+                              Reject
+                            </button>
+                            <button
                               onClick={() => openDoctorDetails(access.doctorAddress)}
                               className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900/20 transition-colors"
                             >
@@ -363,7 +417,7 @@ const GrantAccess = () => {
                   </div>
                 )}
 
-                {active.length > 0 && (
+                {activeTab === 'Granted' && (
                   <div className="space-y-3">
                     <h3 className="text-base font-semibold text-gray-900 dark:text-white">Currently Granted</h3>
                     {active.map((access, index) => (
@@ -415,7 +469,7 @@ const GrantAccess = () => {
                   </div>
                 )}
 
-                {revoked.length > 0 && (
+                {activeTab === 'Rejected' && (
                   <div className="space-y-3">
                     <h3 className="text-base font-semibold text-gray-900 dark:text-white">Revoked / History</h3>
                     {revoked.map((access, index) => (

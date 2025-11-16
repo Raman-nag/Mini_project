@@ -5,20 +5,26 @@ import {
   BuildingOfficeIcon,
   DocumentTextIcon,
   EyeIcon,
-  ClipboardDocumentCheckIcon
+  ClipboardDocumentCheckIcon,
+  ExclamationTriangleIcon,
+  ArrowTopRightOnSquareIcon,
 } from '@heroicons/react/24/outline';
+import { useNavigate } from 'react-router-dom';
 import Card from '../common/Card';
 import Modal from '../common/Modal';
 import patientService from '../../services/patientService';
 import { getProvider } from '../../utils/web3';
 
 const MedicalHistory = () => {
+  const navigate = useNavigate();
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [walletAddress, setWalletAddress] = useState('');
+  const [search, setSearch] = useState('');
+  const [isActivePatient, setIsActivePatient] = useState(true);
 
   useEffect(() => {
     const load = async () => {
@@ -29,6 +35,13 @@ const MedicalHistory = () => {
         const signer = await provider.getSigner();
         const address = await signer.getAddress();
         setWalletAddress(address);
+        const active = await patientService.isActivePatient(address);
+        if (!active) {
+          setIsActivePatient(false);
+          setRecords([]);
+          return;
+        }
+        setIsActivePatient(true);
         const res = await patientService.getMyRecords(address);
         const recs = Array.isArray(res?.records) ? res.records : [];
         const normalized = recs
@@ -49,7 +62,14 @@ const MedicalHistory = () => {
           }));
         setRecords(normalized);
       } catch (e) {
-        setError(e?.message || 'Failed to load medical history');
+        const msg = e?.message || '';
+        if (msg.includes('Not an active patient')) {
+          setIsActivePatient(false);
+          setRecords([]);
+          setError('');
+        } else {
+          setError(msg || 'Failed to load medical history');
+        }
         setRecords([]);
       } finally {
         setLoading(false);
@@ -68,11 +88,31 @@ const MedicalHistory = () => {
     setSelectedRecord(null);
   };
 
+  const filtered = (() => {
+    const q = String(search || '').toLowerCase();
+    if (!q) return records;
+    return records.filter(r => {
+      const inDiag = String(r.diagnosis || '').toLowerCase().includes(q);
+      const inDoc = String(r.doctorName || '').toLowerCase().includes(q);
+      const inDate = String(r.date || '').toLowerCase().includes(q);
+      const inSymptoms = Array.isArray(r.symptoms) && r.symptoms.join(' ').toLowerCase().includes(q);
+      return inDiag || inDoc || inDate || inSymptoms;
+    });
+  })();
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-gray-900">Medical History</h2>
-        <p className="text-sm text-gray-500">Chronological Timeline</p>
+        <div className="flex items-center space-x-3">
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by doctor, diagnosis, symptom, or date"
+            className="px-3 py-2 text-sm border border-gray-300 rounded-lg"
+          />
+          <p className="text-sm text-gray-500">Chronological Timeline</p>
+        </div>
       </div>
 
       {loading ? (
@@ -80,6 +120,31 @@ const MedicalHistory = () => {
           <DocumentTextIcon className="mx-auto h-16 w-16 text-gray-300 mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">Loading records...</h3>
           <p className="text-sm text-gray-500">Fetching on-chain data</p>
+        </Card>
+      ) : !isActivePatient ? (
+        <Card variant="outlined" className="text-center py-12 space-y-4">
+          <ExclamationTriangleIcon className="mx-auto h-12 w-12 text-amber-500" />
+          <div>
+            <h3 className="text-lg font-medium text-gray-900 mb-1">You are not an active patient</h3>
+            <p className="text-sm text-gray-500 max-w-xl mx-auto">
+              You must be registered and marked as an active patient on-chain before you can view medical records.
+              Please complete your patient registration or contact an administrator to activate your account.
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center mt-2">
+            <button
+              onClick={() => navigate('/register')}
+              className="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700"
+            >
+              Register as Patient
+            </button>
+            <button
+              onClick={() => window.alert('Please contact the platform administrator to activate your patient account.')}
+              className="inline-flex items-center justify-center px-4 py-2 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              Contact Admin
+            </button>
+          </div>
         </Card>
       ) : error ? (
         <Card variant="outlined" className="text-center py-12">
@@ -102,7 +167,7 @@ const MedicalHistory = () => {
 
           {/* Timeline items */}
           <div className="space-y-8">
-            {records.map((record, index) => (
+            {filtered.map((record, index) => (
               <div key={record.id} className="relative flex items-start">
                 {/* Timeline dot */}
                 <div className="relative z-10 flex items-center justify-center w-16 h-16 bg-white rounded-full border-4 border-blue-500">
@@ -257,18 +322,23 @@ const MedicalHistory = () => {
                   }
                   docs = (docs || []).map(d => String(d).replace(/\"/g, '"')).filter(Boolean);
                   return (
-                    <div>
-                      {docs.map((cid, i) => (
-                        <a
-                          key={`${cid}-${i}`}
-                          href={`https://ipfs.io/ipfs/${cid.replace(/"/g,'')}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="block mb-2 text-blue-600 hover:underline"
-                        >
-                          View Document {i + 1}
-                        </a>
-                      ))}
+                    <div className="space-y-1">
+                      {docs.map((cid, i) => {
+                        const clean = cid.replace(/"/g, '').trim();
+                        if (!clean) return null;
+                        return (
+                          <a
+                            key={`${clean}-${i}`}
+                            href={`https://ipfs.io/ipfs/${clean}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 px-3 py-1 rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-800 text-xs sm:text-sm font-medium shadow-sm transition-colors break-all"
+                          >
+                            <span className="truncate max-w-xs sm:max-w-md">{clean}</span>
+                            <ArrowTopRightOnSquareIcon className="h-4 w-4 flex-shrink-0" />
+                          </a>
+                        );
+                      })}
                     </div>
                   );
                 })()}
