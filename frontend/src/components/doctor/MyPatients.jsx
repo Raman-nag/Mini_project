@@ -2,17 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { 
   UserIcon, 
   MagnifyingGlassIcon,
-  CalendarIcon,
   DocumentTextIcon,
   PhoneIcon,
-  EnvelopeIcon,
-  ClockIcon
+  EnvelopeIcon
 } from '@heroicons/react/24/outline';
 import Card from '../common/Card';
 import Button from '../common/Button';
 import SearchBar from '../common/SearchBar';
 import Modal from '../common/Modal';
 import doctorService from '../../services/doctorService';
+import { useWeb3 } from '../../contexts/Web3Context';
 import { ipfsUrl } from '../../utils/ipfs';
 
 class ErrorBoundary extends React.Component {
@@ -43,19 +42,16 @@ const MyPatients = ({ onViewHistory }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // History modal state
-  const [historyOpen, setHistoryOpen] = useState(false);
-  const [historyLoading, setHistoryLoading] = useState(false);
-  const [historyError, setHistoryError] = useState('');
-  const [historyPatient, setHistoryPatient] = useState(null);
-  const [historyRecords, setHistoryRecords] = useState([]);
-
-  // New Record modal state
-  const [recordOpen, setRecordOpen] = useState(false);
-  const [recordFor, setRecordFor] = useState(null);
-  const [recordSubmitting, setRecordSubmitting] = useState(false);
-  const [recordError, setRecordError] = useState('');
-  const [form, setForm] = useState({ diagnosis: '', symptoms: '', prescription: '', treatmentPlan: '', ipfsHash: '' });
+  // Details modal
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [detailsPatient, setDetailsPatient] = useState(null);
+  const [detailsTab, setDetailsTab] = useState('records');
+  const [detailsLoading, setDetailsLoading] = useState(false);
+  const [detailsError, setDetailsError] = useState('');
+  const [myRecords, setMyRecords] = useState([]);
+  const [myPrescriptions, setMyPrescriptions] = useState([]);
+  const [otherPrescriptions, setOtherPrescriptions] = useState([]);
+  const { account } = useWeb3();
 
   // Temporary import validity logging to catch invalid element type errors
   useEffect(() => {
@@ -107,14 +103,15 @@ const MyPatients = ({ onViewHistory }) => {
     return () => { mounted = false; };
   }, []);
 
-  const handleViewHistory = async (patient) => {
-    setHistoryPatient(patient);
-    setHistoryOpen(true);
-    setHistoryLoading(true);
-    setHistoryError('');
+  const openDetails = async (patient) => {
+    setDetailsPatient(patient);
+    setDetailsOpen(true);
+    setDetailsLoading(true);
+    setDetailsError('');
+    setDetailsTab('records');
     try {
       const res = await doctorService.getPatientHistory(patient.walletAddress);
-      setHistoryRecords((res?.records || []).map(r => ({
+      const list = (res?.records || []).map(r => ({
         id: r.id,
         date: r.date,
         diagnosis: r.diagnosis,
@@ -122,48 +119,20 @@ const MyPatients = ({ onViewHistory }) => {
         treatmentPlan: r.treatmentPlan,
         ipfsHash: r.ipfsHash,
         doctorAddress: r.doctorAddress,
-      })));
+      }));
+      const myRecs = list.filter(r => (r.doctorAddress || '').toLowerCase() === (account||'').toLowerCase());
+      const myRx = myRecs.filter(r => (r.prescription||'').trim().length > 0);
+      const othersRx = list.filter(r => (r.prescription||'').trim().length > 0 && (r.doctorAddress||'').toLowerCase() !== (account||'').toLowerCase());
+      setMyRecords(myRecs);
+      setMyPrescriptions(myRx);
+      setOtherPrescriptions(othersRx);
     } catch (e) {
-      setHistoryError(e?.message || 'Failed to load history');
-      setHistoryRecords([]);
+      setDetailsError(e?.message || 'Failed to load details');
+      setMyRecords([]);
+      setMyPrescriptions([]);
+      setOtherPrescriptions([]);
     } finally {
-      setHistoryLoading(false);
-    }
-  };
-
-  const handleOpenRecord = (patient) => {
-    setRecordFor(patient);
-    setForm({ diagnosis: '', symptoms: '', prescription: '', treatmentPlan: '', ipfsHash: '' });
-    setRecordError('');
-    setRecordOpen(true);
-  };
-
-  const submitRecord = async (e) => {
-    e?.preventDefault?.();
-    if (!recordFor) return;
-    setRecordSubmitting(true);
-    setRecordError('');
-    try {
-      const payload = {
-        diagnosis: form.diagnosis,
-        symptoms: form.symptoms ? form.symptoms.split(',').map(s => s.trim()).filter(Boolean) : [],
-        prescription: form.prescription,
-        treatmentPlan: form.treatmentPlan,
-        ipfsHash: form.ipfsHash,
-      };
-      const res = await doctorService.createRecord(recordFor.walletAddress, payload, []);
-      if (res?.success) {
-        // Refresh patients and, if history modal for same patient is open, refresh it too
-        await fetchPatients();
-        if (historyOpen && historyPatient && historyPatient.walletAddress === recordFor.walletAddress) {
-          await handleViewHistory(historyPatient);
-        }
-        setRecordOpen(false);
-      }
-    } catch (e) {
-      setRecordError(e?.message || 'Failed to create record');
-    } finally {
-      setRecordSubmitting(false);
+      setDetailsLoading(false);
     }
   };
 
@@ -307,7 +276,7 @@ const MyPatients = ({ onViewHistory }) => {
                   <option value="lastVisit">Last Visit</option>
                   <option value="name">Name</option>
                   <option value="records">Records Count</option>
-                  <option value="nextAppointment">Next Appointment</option>
+                  
                 </select>
                 <button
                   onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
@@ -320,109 +289,102 @@ const MyPatients = ({ onViewHistory }) => {
           </div>
         </Card.Body>
       </Card>
-
-      {/* History Modal */}
+      {/* Summary Stats (top) */}
+      <Card>
+        <Card.Body>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="text-center">
+              <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{filteredPatients.length}</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Total Patients</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">{filteredPatients.reduce((sum, p) => sum + p.totalRecords, 0)}</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Total Records</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{filteredPatients.filter(p => { const d=new Date(p.lastVisitDate); const t=new Date(); t.setDate(t.getDate()-30); return d>=t; }).length}</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Active (30 days)</p>
+            </div>
+          </div>
+        </Card.Body>
+      </Card>
+      {/* Details Modal */}
       <Modal
-        isOpen={historyOpen}
-        onClose={() => setHistoryOpen(false)}
-        title={historyPatient ? `History: ${historyPatient.firstName} ${historyPatient.lastName}` : 'Patient History'}
+        isOpen={detailsOpen}
+        onClose={() => setDetailsOpen(false)}
+        title={detailsPatient ? `Details: ${detailsPatient.firstName} ${detailsPatient.lastName}` : 'Details'}
         size="xl"
       >
-        {historyLoading && <p className="text-sm text-gray-500">Loading history...</p>}
-        {historyError && !historyLoading && <p className="text-sm text-red-600">{historyError}</p>}
-        {!historyLoading && !historyError && (
+        {detailsLoading && <p className="text-sm text-gray-500">Loading…</p>}
+        {detailsError && !detailsLoading && <p className="text-sm text-red-600">{detailsError}</p>}
+        {!detailsLoading && !detailsError && detailsPatient && (
           <div className="space-y-4">
-            {historyRecords.length === 0 && (
-              <p className="text-sm text-gray-500">No records for this patient.</p>
-            )}
-            {historyRecords.map(r => (
-              <div key={r.id} className="border rounded-lg p-4">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm text-gray-500">{r.date}</div>
-                  <div className="text-xs font-mono">{r.id}</div>
-                </div>
-                <div className="mt-2 text-sm">
-                  <div><span className="font-medium">Diagnosis:</span> {r.diagnosis || '—'}</div>
-                  <div><span className="font-medium">Prescription:</span> {r.prescription || '—'}</div>
-                  <div><span className="font-medium">Treatment:</span> {r.treatmentPlan || '—'}</div>
-                  <div className="mt-2">
-                    <span className="font-medium">Documents:</span>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+              <div>
+                <div className="text-gray-500">Name</div>
+                <div className="font-medium text-gray-900">{detailsPatient.firstName} {detailsPatient.lastName}</div>
+              </div>
+              <div>
+                <div className="text-gray-500">Wallet</div>
+                <div className="font-mono text-gray-900 break-all">{detailsPatient.walletAddress}</div>
+              </div>
+              <div>
+                <div className="text-gray-500">Recent Visit</div>
+                <div className="text-gray-900">{detailsPatient.lastVisitDate ? formatDate(detailsPatient.lastVisitDate) : '—'}</div>
+              </div>
+            </div>
+            <div className="flex items-center space-x-2">
+              <button onClick={() => setDetailsTab('records')} className={`px-3 py-1 rounded-lg text-sm border ${detailsTab==='records'?'bg-blue-600 text-white border-blue-600':'border-gray-300'}`}>View Record</button>
+              <button onClick={() => setDetailsTab('myRx')} className={`px-3 py-1 rounded-lg text-sm border ${detailsTab==='myRx'?'bg-blue-600 text-white border-blue-600':'border-gray-300'}`}>View Prescription</button>
+              <button onClick={() => setDetailsOpen(false)} className="ml-auto px-3 py-1 rounded-lg text-sm border border-gray-300">Close</button>
+            </div>
+            {detailsTab === 'records' && (
+              <div className="space-y-3">
+                {myRecords.length === 0 && <div className="text-sm text-gray-500">No records created by you.</div>}
+                {myRecords.map(r => (
+                  <div key={`r-${r.id}`} className="p-3 border rounded-lg">
+                    <div className="text-sm text-gray-500">{r.date}</div>
+                    <div className="font-medium">{r.diagnosis || 'Record'}</div>
                     {(() => {
-                      if (!r.ipfsHash) return <span> —</span>;
+                      if (!r.ipfsHash) return null;
                       let cids = [];
                       try {
                         if (typeof r.ipfsHash === 'string' && (r.ipfsHash.trim().startsWith('[') || r.ipfsHash.trim().startsWith('{'))) {
                           const parsed = JSON.parse(r.ipfsHash);
-                          if (Array.isArray(parsed)) cids = parsed;
-                          else if (parsed && typeof parsed === 'object') cids = Object.values(parsed);
-                        } else if (typeof r.ipfsHash === 'string') {
-                          cids = [r.ipfsHash];
-                        } else if (Array.isArray(r.ipfsHash)) {
-                          cids = r.ipfsHash;
-                        }
-                      } catch {
-                        cids = [String(r.ipfsHash)];
-                      }
-                      cids = (cids || []).filter(Boolean);
-                      if (cids.length === 0) return <span> —</span>;
-                      return (
+                          cids = Array.isArray(parsed) ? parsed : Object.values(parsed || {});
+                        } else if (typeof r.ipfsHash === 'string') cids = [r.ipfsHash];
+                        else if (Array.isArray(r.ipfsHash)) cids = r.ipfsHash;
+                      } catch { cids = [String(r.ipfsHash)]; }
+                      cids = (cids||[]).filter(Boolean);
+                      return cids.length ? (
                         <div className="mt-1 space-y-1">
-                          {cids.map((cid, idx) => (
-                            <div key={`${r.id}-cid-${idx}`}>
-                              <a className="text-blue-600 hover:underline break-all" href={ipfsUrl(cid)} target="_blank" rel="noreferrer">
-                                Document {idx + 1}
-                              </a>
-                              <span className="ml-2 text-xs text-gray-500 font-mono">{cid}</span>
-                            </div>
+                          {cids.map((cid, i) => (
+                            <a key={`r-${r.id}-cid-${i}`} className="text-blue-600 text-sm hover:underline break-all" href={ipfsUrl(cid)} target="_blank" rel="noreferrer">Document {i+1}</a>
                           ))}
                         </div>
-                      );
+                      ) : null;
                     })()}
                   </div>
-                </div>
+                ))}
               </div>
-            ))}
+            )}
+            {detailsTab === 'myRx' && (
+              <div className="space-y-2 text-sm">
+                {myPrescriptions.length === 0 && <div className="text-gray-500">No prescriptions by you for this patient.</div>}
+                {myPrescriptions.map(p => (
+                  <div key={`myrx-${p.id}`} className="p-3 border rounded-lg">
+                    <div className="font-medium">{p.prescription || 'Prescription'}</div>
+                    <div className="text-gray-500">{p.date}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+            
           </div>
         )}
       </Modal>
 
-      {/* New Record Modal */}
-      <Modal
-        isOpen={recordOpen}
-        onClose={() => setRecordOpen(false)}
-        title={recordFor ? `New Record for ${recordFor.firstName} ${recordFor.lastName}` : 'New Record'}
-        size="lg"
-      >
-        <form onSubmit={submitRecord} className="space-y-4">
-          {recordError && <div className="text-sm text-red-600">{recordError}</div>}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Diagnosis</label>
-            <input className="w-full mt-1 px-3 py-2 border rounded-md bg-white dark:bg-gray-800" value={form.diagnosis} onChange={e => setForm({ ...form, diagnosis: e.target.value })} required />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Symptoms (comma separated)</label>
-            <input className="w-full mt-1 px-3 py-2 border rounded-md bg-white dark:bg-gray-800" value={form.symptoms} onChange={e => setForm({ ...form, symptoms: e.target.value })} />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Prescription</label>
-            <input className="w-full mt-1 px-3 py-2 border rounded-md bg-white dark:bg-gray-800" value={form.prescription} onChange={e => setForm({ ...form, prescription: e.target.value })} />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Treatment Plan</label>
-            <input className="w-full mt-1 px-3 py-2 border rounded-md bg-white dark:bg-gray-800" value={form.treatmentPlan} onChange={e => setForm({ ...form, treatmentPlan: e.target.value })} />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">IPFS Hash</label>
-            <input className="w-full mt-1 px-3 py-2 border rounded-md bg-white dark:bg-gray-800" value={form.ipfsHash} onChange={e => setForm({ ...form, ipfsHash: e.target.value })} required />
-          </div>
-          <div className="flex justify-end space-x-2">
-            <Button type="button" variant="ghost" onClick={() => setRecordOpen(false)}>Cancel</Button>
-            <Button type="submit" loading={recordSubmitting}>Create</Button>
-          </div>
-        </form>
-      </Modal>
-
-      {/* Patients Grid */}
+      {/* Patients Table */}
       {loading && (
         <Card>
           <Card.Body>
@@ -437,95 +399,49 @@ const MyPatients = ({ onViewHistory }) => {
           </Card.Body>
         </Card>
       )}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredPatients.map((patient) => (
-          <Card key={patient.id} className="hover:shadow-lg transition-shadow duration-300">
-            <Card.Body>
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center space-x-3">
-                  <div className="flex-shrink-0 h-12 w-12">
-                    <div className="h-12 w-12 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center">
-                      <UserIcon className="h-6 w-6 text-white" />
+      {!loading && (
+        <div className="bg-white dark:bg-gray-900 rounded-lg shadow overflow-x-auto">
+          <table className="min-w-full text-sm">
+            <thead>
+              <tr className="text-left text-gray-600 dark:text-gray-300 border-b">
+                <th className="px-4 py-3">Patient</th>
+                <th className="px-4 py-3">Wallet</th>
+                <th className="px-4 py-3">Last Visit</th>
+                <th className="px-4 py-3">Records</th>
+                <th className="px-4 py-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredPatients.map((p) => (
+                <tr key={p.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
+                  <td className="px-4 py-3">
+                    <div className="flex items-center space-x-2">
+                      <div className="h-8 w-8 rounded-full bg-green-500 flex items-center justify-center">
+                        <UserIcon className="h-4 w-4 text-white" />
+                      </div>
+                      <div>
+                        <div className="font-medium text-gray-900 dark:text-white">{p.firstName} {p.lastName}</div>
+                        <div className="text-xs text-gray-500">{p.email || '—'}</div>
+                      </div>
                     </div>
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                      {patient.firstName} {patient.lastName}
-                    </h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      {patient.patientId}
-                    </p>
-                  </div>
-                </div>
-                {getBloodTypeBadge(patient.bloodType)}
-              </div>
-
-              <div className="space-y-3 mb-4">
-                <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
-                  <EnvelopeIcon className="h-4 w-4" />
-                  <span>{patient.email || '—'}</span>
-                </div>
-                <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
-                  <PhoneIcon className="h-4 w-4" />
-                  <span>{patient.phone || '—'}</span>
-                </div>
-                <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
-                  <CalendarIcon className="h-4 w-4" />
-                  <span>{patient.dateOfBirth ? `${calculateAge(patient.dateOfBirth)} years old` : '—'}</span>
-                </div>
-              </div>
-
-              <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mb-4">
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p className="text-gray-500 dark:text-gray-400">Last Visit</p>
-                    <p className="font-medium text-gray-900 dark:text-white">
-                      {patient.lastVisitDate ? formatDate(patient.lastVisitDate) : '—'}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-gray-500 dark:text-gray-400">Records</p>
-                    <p className="font-medium text-gray-900 dark:text-white">
-                      {patient.totalRecords}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {patient.nextAppointment && (
-                <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                  <div className="flex items-center space-x-2">
-                    <ClockIcon className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                    <span className="text-sm font-medium text-blue-900 dark:text-blue-300">
-                      Next Appointment: {formatDate(patient.nextAppointment)}
-                    </span>
-                  </div>
-                </div>
+                  </td>
+                  <td className="px-4 py-3 font-mono">{p.walletAddress?.slice(0,6)}...{p.walletAddress?.slice(-4)}</td>
+                  <td className="px-4 py-3">{p.lastVisitDate ? formatDate(p.lastVisitDate) : '—'}</td>
+                  <td className="px-4 py-3">{p.totalRecords}</td>
+                  <td className="px-4 py-3 text-right">
+                    <Button size="sm" onClick={() => openDetails(p)} icon={<DocumentTextIcon className="w-4 h-4" />}>View Details</Button>
+                  </td>
+                </tr>
+              ))}
+              {filteredPatients.length === 0 && (
+                <tr>
+                  <td colSpan="5" className="px-4 py-8 text-center text-gray-500">No patients found</td>
+                </tr>
               )}
-
-              <div className="flex space-x-2">
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={() => handleViewHistory(patient)}
-                  icon={<DocumentTextIcon className="w-4 h-4" />}
-                  className="flex-1"
-                >
-                  View History
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleOpenRecord(patient)}
-                  icon={<DocumentTextIcon className="w-4 h-4" />}
-                >
-                  New Record
-                </Button>
-              </div>
-            </Card.Body>
-          </Card>
-        ))}
-      </div>
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {filteredPatients.length === 0 && (
         <Card>
@@ -546,50 +462,7 @@ const MyPatients = ({ onViewHistory }) => {
         </Card>
       )}
 
-      {/* Summary Stats */}
-      <Card>
-        <Card.Body>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="text-center">
-              <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                {filteredPatients.length}
-              </p>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                Total Patients
-              </p>
-            </div>
-            <div className="text-center">
-              <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-                {filteredPatients.filter(p => p.nextAppointment).length}
-              </p>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                Upcoming Appointments
-              </p>
-            </div>
-            <div className="text-center">
-              <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-                {filteredPatients.reduce((sum, p) => sum + p.totalRecords, 0)}
-              </p>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                Total Records
-              </p>
-            </div>
-            <div className="text-center">
-              <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">
-                {filteredPatients.filter(p => {
-                  const lastVisit = new Date(p.lastVisitDate);
-                  const thirtyDaysAgo = new Date();
-                  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-                  return lastVisit >= thirtyDaysAgo;
-                }).length}
-              </p>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                Active (30 days)
-              </p>
-            </div>
-          </div>
-        </Card.Body>
-      </Card>
+      
     </div>
     </ErrorBoundary>
   );
