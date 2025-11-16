@@ -9,6 +9,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../contexts/AuthContext';
 import { connectWallet, ensureCorrectNetwork } from '../utils/web3';
+import { ADMIN_ADDRESS } from '../config/contractConfig';
 
 const Login = () => {
   const { login } = useAuth();
@@ -20,9 +21,11 @@ const Login = () => {
   const navigate = useNavigate();
 
   const roleOptions = [
-    { value: 'patient', label: 'Patient', description: 'Access your medical records' },
-    { value: 'doctor', label: 'Doctor', description: 'Manage patient records' },
-    { value: 'hospital', label: 'Hospital', description: 'Administrative dashboard' }
+    { value: 'patient', label: 'Patient', description: 'Patient dashboard' },
+    { value: 'hospital', label: 'Hospital', description: 'Hospital admin dashboard (assigned by admin)' },
+    { value: 'doctor', label: 'Doctor', description: 'Doctor dashboard (granted by hospital)' },
+    { value: 'insurance', label: 'Insurance', description: 'Insurance admin (assigned by admin)' },
+    { value: 'research', label: 'Research Institute', description: 'Research admin (assigned by admin)' },
   ];
 
   // Connect wallet first
@@ -57,9 +60,14 @@ const Login = () => {
     setError('');
 
     try {
-      const result = await login(selectedRole);
+      const roleForLogin = selectedRole === 'patient' ? null : selectedRole;
+      const result = await login(roleForLogin);
       
       if (!result.success) {
+        if (selectedRole === 'patient' && /not registered/i.test(result.error || '')) {
+          navigate('/register');
+          return;
+        }
         throw new Error(result.error || 'Login failed');
       }
       
@@ -160,10 +168,10 @@ const Login = () => {
                   </div>
                 </div>
 
-                {/* Role Selection (Optional - for filtering) */}
+                {/* Role Selection */}
                 <div>
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">
-                    Select your role (optional)
+                    Select your login type
                   </label>
                   <div className="grid grid-cols-1 gap-3">
                     {roleOptions.map((role) => (
@@ -206,7 +214,7 @@ const Login = () => {
                     ))}
                   </div>
                   <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                    Your role will be automatically detected from the blockchain if not selected
+                    Admin login is restricted to the configured admin address. Users can self-register.
                   </p>
                 </div>
 

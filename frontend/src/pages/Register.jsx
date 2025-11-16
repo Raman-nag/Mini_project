@@ -42,19 +42,6 @@ const Register = () => {
       label: 'Patient', 
       description: 'Access and manage your medical records',
       icon: UserIcon,
-    },
-    { 
-      value: 'hospital', 
-      label: 'Hospital', 
-      description: 'Administrative dashboard and staff management',
-      icon: BuildingOfficeIcon,
-    },
-    { 
-      value: 'doctor', 
-      label: 'Doctor', 
-      description: 'Doctors must be registered by a hospital administrator',
-      icon: UserGroupIcon,
-      disabled: true,
     }
   ];
 
@@ -102,13 +89,6 @@ const Register = () => {
       }
       if (!formData.bloodGroup || formData.bloodGroup.trim().length === 0) {
         newErrors.bloodGroup = 'Blood group is required';
-      }
-    } else if (formData.role === 'hospital') {
-      if (!formData.organization || formData.organization.trim().length === 0) {
-        newErrors.organization = 'Hospital name is required';
-      }
-      if (!formData.registrationNumber || formData.registrationNumber.trim().length === 0) {
-        newErrors.registrationNumber = 'Registration number is required';
       }
     }
 
@@ -179,12 +159,7 @@ const Register = () => {
         setErrors({ role: 'Please select a role' });
         return;
       }
-      if (formData.role === 'doctor') {
-        setErrors({ 
-          general: 'Doctors must be registered by a hospital administrator. Please contact your hospital.' 
-        });
-        return;
-      }
+      
       setCurrentStep(2);
     }
   };

@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
-import DashboardLayout from '../components/layout/DashboardLayout';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import DashboardLayout from '../components/layout/DashboardLayout';
 import { 
   BuildingOfficeIcon, 
   UserGroupIcon, 
@@ -20,6 +20,12 @@ const HospitalDashboard = () => {
   const [networkStatus, setNetworkStatus] = useState('connected');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  const [stats, setStats] = useState({
+    totalDoctors: '—',
+    totalPatients: '—',
+    totalRecords: '—'
+  });
 
   useEffect(() => {
     const loadHospital = async () => {
@@ -55,61 +61,55 @@ const HospitalDashboard = () => {
     loadHospital();
   }, []);
 
-  const [stats, setStats] = useState([
-    { name: 'Total Doctors', value: '—', change: '', icon: UserGroupIcon, color: 'text-blue-600', bgColor: 'bg-blue-100' },
-    { name: 'Active Patients', value: '—', change: '', icon: HeartIcon, color: 'text-green-600', bgColor: 'bg-green-100' },
-    { name: 'Medical Records', value: '—', change: '', icon: DocumentTextIcon, color: 'text-purple-600', bgColor: 'bg-purple-100' },
-  ]);
+  const statCards = useMemo(() => ([
+    {
+      name: 'Total Doctors',
+      value: String(stats.totalDoctors ?? '—'),
+      change: '',
+      icon: UserGroupIcon,
+      color: 'text-blue-600',
+      bgColor: 'bg-blue-100'
+    },
+    {
+      name: 'Active Patients',
+      value: String(stats.totalPatients ?? '—'),
+      change: '',
+      icon: HeartIcon,
+      color: 'text-green-600',
+      bgColor: 'bg-green-100'
+    },
+    {
+      name: 'Medical Records',
+      value: String(stats.totalRecords ?? '—'),
+      change: '',
+      icon: DocumentTextIcon,
+      color: 'text-purple-600',
+      bgColor: 'bg-purple-100'
+    }
+  ]), [stats]);
+
+  
 
   useEffect(() => {
-    const loadStats = async () => {
+    let mounted = true;
+    const load = async () => {
       try {
-        const provider = getProvider();
-        if (!provider) return;
-        const signer = await provider.getSigner();
-        const address = await signer.getAddress();
-        const hospitalContract = await getHospitalContract();
-
-        // Get counts from hospital details
-        let details;
-        try {
-          details = await hospitalContract.getHospitalDetails(address);
-        } catch (_) {
-          details = await hospitalContract.hospitals?.(address);
-        }
-
-        const doctorCount = Number(details?.doctorCount ?? 0);
-        const patientCount = Number(details?.patientCount ?? 0);
-
-        // Estimate records: for each patient, count records via DoctorManagement
-        let recordCount = 0;
-        try {
-          const doctorModule = await import('../utils/contract');
-          const doctorContract = await doctorModule.getDoctorContract();
-          const patients = await hospitalContract.getHospitalPatients(address);
-          const recordCounts = await Promise.all(
-            patients.map(async (p) => {
-              try {
-                const recs = await doctorContract.getPatientRecords(p);
-                return Array.isArray(recs) ? recs.length : 0;
-              } catch {
-                return 0;
-              }
-            })
-          );
-          recordCount = recordCounts.reduce((a, b) => a + b, 0);
-        } catch (_) {}
-
-        setStats(prev => [
-          { ...prev[0], value: String(doctorCount) },
-          { ...prev[1], value: String(patientCount) },
-          { ...prev[2], value: String(recordCount) },
-        ]);
+        const metrics = await hospitalService.getHospitalMetrics();
+        if (!mounted) return;
+        setStats({
+          totalDoctors: metrics?.doctors || 0,
+          totalPatients: metrics?.patients || 0,
+          totalRecords: metrics?.records || 0
+        });
       } catch (e) {
-        console.warn('Failed to load stats', e);
+        console.warn('Failed to load metrics', e);
       }
     };
-    loadStats();
+    load();
+    const provider = getProvider();
+    const onBlock = () => load();
+    provider?.on?.('block', onBlock);
+    return () => { mounted = false; provider?.off?.('block', onBlock); };
   }, []);
 
   const [recentActivities, setRecentActivities] = useState([]);
@@ -117,6 +117,7 @@ const HospitalDashboard = () => {
   const [activityError, setActivityError] = useState(null);
 
   useEffect(() => {
+    let mounted = true;
     const loadActivity = async () => {
       setLoadingActivity(true);
       setActivityError(null);
@@ -133,15 +134,21 @@ const HospitalDashboard = () => {
           }
           return { id: idx, icon: DocumentTextIcon, color: 'text-green-500', message: a.message, time: new Date((a.timestamp || 0) * 1000).toLocaleString() };
         });
-        setRecentActivities(normalized);
+        if (mounted) setRecentActivities(normalized);
       } catch (e) {
-        setActivityError(e?.message || 'Failed to load recent activity');
-        setRecentActivities([]);
+        if (mounted) {
+          setActivityError(e?.message || 'Failed to load recent activity');
+          setRecentActivities([]);
+        }
       } finally {
-        setLoadingActivity(false);
+        if (mounted) setLoadingActivity(false);
       }
     };
     loadActivity();
+    const provider = getProvider();
+    const onBlock = () => loadActivity();
+    provider?.on?.('block', onBlock);
+    return () => { mounted = false; provider?.off?.('block', onBlock); };
   }, []);
 
   return (
@@ -173,7 +180,7 @@ const HospitalDashboard = () => {
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {stats.map((stat) => {
+          {statCards.map((stat) => {
             const IconComponent = stat.icon;
             return (
               <div key={stat.name} className="bg-white rounded-lg shadow p-6">
@@ -269,27 +276,7 @@ const HospitalDashboard = () => {
           </div>
         </div>
 
-        {/* Empty State for Records */}
-        <div className="bg-white rounded-lg shadow">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">Medical Records</h2>
-          </div>
-          <div className="p-6">
-            <div className="text-center py-12">
-              <DocumentTextIcon className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900">No records yet</h3>
-              <p className="mt-1 text-sm text-gray-500">
-                Get started by adding doctors and patients to create medical records.
-              </p>
-              <div className="mt-6">
-                <button className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                  <PlusIcon className="h-4 w-4 mr-2" />
-                  Add First Doctor
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+        {/* Medical Records section removed as per requirements */}
       </div>
     </DashboardLayout>
   );

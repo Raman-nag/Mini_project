@@ -6,10 +6,7 @@ import {
   HeartIcon, 
   DocumentTextIcon,
   ClipboardDocumentListIcon,
-  CalendarIcon,
-  PlusIcon,
-  ArrowRightIcon,
-  ClockIcon
+  ArrowRightIcon
 } from '@heroicons/react/24/outline';
 import { useWeb3 } from '../contexts/Web3Context';
 import hospitalService from '../services/hospitalService';
@@ -27,10 +24,10 @@ const DoctorDashboard = () => {
   const [patientsCount, setPatientsCount] = useState(0);
   const [recordsCount, setRecordsCount] = useState(0);
   const [prescriptionsCount, setPrescriptionsCount] = useState(0);
-  const [appointmentsCount, setAppointmentsCount] = useState(0);
   const [recentRecords, setRecentRecords] = useState([]);
   const [deniedCount, setDeniedCount] = useState(0);
   const [recentPrescriptions, setRecentPrescriptions] = useState([]);
+  const [recentActivity, setRecentActivity] = useState([]);
 
   useEffect(() => {
     if (!isConnected) {
@@ -87,7 +84,7 @@ const DoctorDashboard = () => {
           setRecordsCount(allRecords.length);
           allRecords.sort((a, b) => b.timestamp - a.timestamp);
           setRecentRecords(allRecords.slice(0, 5));
-          setDeniedCount(denied);
+
         }
 
         // Load prescriptions authored by this doctor directly from chain (no cache)
@@ -117,6 +114,27 @@ const DoctorDashboard = () => {
     return () => { mounted = false; };
   }, [account, isConnected]);
 
+  useEffect(() => {
+    const recs = (recentRecords || []).map(r => ({
+      id: r.id,
+      type: 'Record',
+      patient: r.patientAddress,
+      timestamp: r.timestamp || Date.parse(r.date) || 0,
+      date: r.date,
+    }));
+    const pres = (recentPrescriptions || []).map(p => ({
+      id: p.id,
+      type: 'Prescription',
+      patient: p.patientAddress,
+      timestamp: p.timestamp || Date.parse(p.date) || 0,
+      date: p.date,
+    }));
+    const merged = [...recs, ...pres]
+      .sort((a,b) => (b.timestamp||0) - (a.timestamp||0))
+      .slice(0, 8);
+    setRecentActivity(merged);
+  }, [recentRecords, recentPrescriptions]);
+
   // Subscribe to on-chain RecordCreated events to refresh prescriptions in real time
   useEffect(() => {
     if (!account) return;
@@ -134,7 +152,44 @@ const DoctorDashboard = () => {
             if (!active) return;
             if (pres?.success) {
               setPrescriptionsCount(pres.count);
-              setRecentPrescriptions((pres.prescriptions || []).slice(0, 5));
+              const latestPres = (pres.prescriptions || []).slice(0, 5);
+              setRecentPrescriptions(latestPres);
+            }
+            // Refresh records created count and recent records for this doctor
+            const patientsRes = await doctorService.getMyPatients();
+            if (patientsRes?.success) {
+              const pts = patientsRes.patients || [];
+              const allRecords = [];
+              for (const p of pts.slice(0, 25)) {
+                try {
+                  const hist = await doctorService.getPatientHistory(p.walletAddress);
+                  if (hist?.success && Array.isArray(hist.records)) {
+                    const mine = hist.records.filter(r => (r.doctorAddress || '').toLowerCase() === account.toLowerCase());
+                    allRecords.push(...mine);
+                  }
+                } catch {}
+              }
+              setRecordsCount(allRecords.length);
+              allRecords.sort((a, b) => b.timestamp - a.timestamp);
+              const latestRecs = allRecords.slice(0, 5);
+              setRecentRecords(latestRecs);
+              // Rebuild consolidated activity on live update
+              const recs = (latestRecs || []).map(r => ({
+                id: r.id,
+                type: 'Record',
+                patient: r.patientAddress,
+                timestamp: r.timestamp || Date.parse(r.date) || 0,
+                date: r.date,
+              }));
+              const pres = (recentPrescriptions || []).map(p => ({
+                id: p.id,
+                type: 'Prescription',
+                patient: p.patientAddress,
+                timestamp: p.timestamp || Date.parse(p.date) || 0,
+                date: p.date,
+              }));
+              const merged = [...recs, ...pres].sort((a,b) => (b.timestamp||0) - (a.timestamp||0)).slice(0, 8);
+              setRecentActivity(merged);
             }
           } catch {}
         };
@@ -179,14 +234,6 @@ const DoctorDashboard = () => {
       icon: ClipboardDocumentListIcon,
       color: 'text-purple-600',
       bgColor: 'bg-purple-100'
-    },
-    {
-      name: 'Appointments',
-      value: String(appointmentsCount),
-      change: '',
-      icon: CalendarIcon,
-      color: 'text-orange-600',
-      bgColor: 'bg-orange-100'
     }
   ];
 
@@ -203,10 +250,8 @@ const DoctorDashboard = () => {
         <div className="bg-gradient-to-r from-green-600 to-blue-600 rounded-lg p-6 text-white">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold">Doctor Dashboard</h1>
-              <p className="mt-2 text-green-100">
-                Manage your patients and create secure medical records
-              </p>
+              <h1 className="text-2xl font-bold">{`Welcome back${userProfile?.firstName ? ', ' : ''}${userProfile?.firstName || ''} ${userProfile?.lastName || ''}`}</h1>
+              <p className="mt-2 text-green-100">Manage patients, records, and prescriptions</p>
             </div>
             <div className="bg-white bg-opacity-20 rounded-full p-4">
               <UserIcon className="h-12 w-12" />
@@ -214,39 +259,74 @@ const DoctorDashboard = () => {
           </div>
         </div>
 
-        {/* Recent Prescriptions (live) */}
+        {/* Quick Actions */}
         <div className="bg-white rounded-lg shadow">
           <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">Recent Prescriptions</h2>
+            <h2 className="text-lg font-semibold text-gray-900">Quick Actions</h2>
           </div>
           <div className="p-6">
-            {recentPrescriptions.length > 0 ? (
-              <div className="space-y-4">
-                {recentPrescriptions.map((p) => (
-                  <div key={p.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                    <div>
-                      <p className="font-medium text-gray-900">{p.patientAddress}</p>
-                      <p className="text-sm text-gray-500">{p.prescription?.slice(0, 100) || '—'}</p>
-                      <p className="text-xs text-gray-400">{p.date}</p>
-                    </div>
-                    {p.ipfsHash ? (
-                      <a className="text-sm text-blue-600 hover:underline" href={`https://ipfs.io/ipfs/${p.ipfsHash}`} target="_blank" rel="noreferrer">IPFS</a>
-                    ) : null}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-12">
-                <ClipboardDocumentListIcon className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-2 text-sm font-medium text-gray-900">No prescriptions yet</h3>
-                <p className="mt-1 text-sm text-gray-500">Write a prescription to see it here.</p>
-              </div>
-            )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <button
+                onClick={() => navigate('/doctor/my-patients')}
+                className="w-full flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                <div className="bg-blue-100 p-3 rounded-lg mr-4">
+                  <HeartIcon className="h-6 w-6 text-blue-600" />
+                </div>
+                <div className="text-left flex-1">
+                  <h3 className="font-medium text-gray-900">My Patients</h3>
+                  <p className="text-sm text-gray-500">Browse and manage patients</p>
+                </div>
+                <ArrowRightIcon className="h-5 w-5 text-gray-400" />
+              </button>
+
+              <button
+                onClick={() => navigate('/doctor/get-patient-details')}
+                className="w-full flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                <div className="bg-green-100 p-3 rounded-lg mr-4">
+                  <DocumentTextIcon className="h-6 w-6 text-green-600" />
+                </div>
+                <div className="text-left flex-1">
+                  <h3 className="font-medium text-gray-900">Get Patient Details</h3>
+                  <p className="text-sm text-gray-500">Access records and IPFS</p>
+                </div>
+                <ArrowRightIcon className="h-5 w-5 text-gray-400" />
+              </button>
+
+              <button
+                onClick={() => navigate('/doctor/create-record')}
+                className="w-full flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                <div className="bg-indigo-100 p-3 rounded-lg mr-4">
+                  <DocumentTextIcon className="h-6 w-6 text-indigo-600" />
+                </div>
+                <div className="text-left flex-1">
+                  <h3 className="font-medium text-gray-900">Create Record</h3>
+                  <p className="text-sm text-gray-500">Add a new patient record</p>
+                </div>
+                <ArrowRightIcon className="h-5 w-5 text-gray-400" />
+              </button>
+
+              <button
+                onClick={() => navigate('/doctor/analytics')}
+                className="w-full flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                <div className="bg-purple-100 p-3 rounded-lg mr-4">
+                  <ClipboardDocumentListIcon className="h-6 w-6 text-purple-600" />
+                </div>
+                <div className="text-left flex-1">
+                  <h3 className="font-medium text-gray-900">Analytics</h3>
+                  <p className="text-sm text-gray-500">View your activity insights</p>
+                </div>
+                <ArrowRightIcon className="h-5 w-5 text-gray-400" />
+              </button>
+            </div>
           </div>
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {stats.map((stat) => {
             const IconComponent = stat.icon;
             return (
@@ -266,121 +346,31 @@ const DoctorDashboard = () => {
           })}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Quick Actions */}
-          <div className="bg-white rounded-lg shadow">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">Quick Actions</h2>
-            </div>
-            <div className="p-6">
-              <div className="space-y-4">
-                <button
-                  onClick={() => navigate('/doctor/create-record')}
-                  className="w-full flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  <div className="bg-green-100 p-3 rounded-lg mr-4">
-                    <PlusIcon className="h-6 w-6 text-green-600" />
-                  </div>
-                  <div className="text-left flex-1">
-                    <h3 className="font-medium text-gray-900">Create New Record</h3>
-                    <p className="text-sm text-gray-500">Add a new patient record</p>
-                  </div>
-                  <ArrowRightIcon className="h-5 w-5 text-gray-400" />
-                </button>
-
-                <button
-                  onClick={() => navigate('/doctor/my-patients')}
-                  className="w-full flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  <div className="bg-blue-100 p-3 rounded-lg mr-4">
-                    <HeartIcon className="h-6 w-6 text-blue-600" />
-                  </div>
-                  <div className="text-left flex-1">
-                    <h3 className="font-medium text-gray-900">View My Patients</h3>
-                    <p className="text-sm text-gray-500">Browse patient list</p>
-                  </div>
-                  <ArrowRightIcon className="h-5 w-5 text-gray-400" />
-                </button>
-
-                <button
-                  onClick={() => navigate('/doctor/write-prescription')}
-                  className="w-full flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  <div className="bg-purple-100 p-3 rounded-lg mr-4">
-                    <ClipboardDocumentListIcon className="h-6 w-6 text-purple-600" />
-                  </div>
-                  <div className="text-left flex-1">
-                    <h3 className="font-medium text-gray-900">Write Prescription</h3>
-                    <p className="text-sm text-gray-500">Create new prescription</p>
-                  </div>
-                  <ArrowRightIcon className="h-5 w-5 text-gray-400" />
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Today's Appointments for final demo */}
-          {/* <div className="bg-white rounded-lg shadow">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">Today's Appointments</h2>
-            </div>
-            <div className="p-6">
-              {upcomingAppointments.length > 0 ? (
-                <div className="space-y-4">
-                  {upcomingAppointments.map((appointment) => (
-                    <div key={appointment.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                      <div className="flex items-center">
-                        <ClockIcon className="h-5 w-5 text-gray-400 mr-3" />
-                        <div>
-                          <p className="font-medium text-gray-900">{appointment.patient}</p>
-                          <p className="text-sm text-gray-500">{appointment.type}</p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-medium text-gray-900">{appointment.time}</p>
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          appointment.status === 'confirmed' 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-yellow-100 text-yellow-800'
-                        }`}>
-                          {appointment.status}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <CalendarIcon className="mx-auto h-12 w-12 text-gray-400" />
-                  <h3 className="mt-2 text-sm font-medium text-gray-900">No appointments today</h3>
-                  <p className="mt-1 text-sm text-gray-500">Enjoy your free time!</p>
-                </div>
-              )}
-            </div>
-          </div> */}
-        </div>
-
-        {/* Recent Records (from blockchain) */}
+        {/* Recent Activity (combined) */}
         <div className="bg-white rounded-lg shadow">
           <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">Recent Medical Records</h2>
+            <h2 className="text-lg font-semibold text-gray-900">Recent Activity</h2>
           </div>
           <div className="p-6">
-            {recentRecords.length > 0 ? (
+            {recentActivity.length > 0 ? (
               <div className="space-y-4">
-                {recentRecords.map((record) => (
-                  <div key={record.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                {recentActivity.map(item => (
+                  <div key={`${item.type}-${item.id}`} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
                     <div className="flex items-center">
-                      <DocumentTextIcon className="h-8 w-8 text-blue-500 mr-4" />
+                      {item.type === 'Record' ? (
+                        <DocumentTextIcon className="h-8 w-8 text-blue-500 mr-4" />
+                      ) : (
+                        <ClipboardDocumentListIcon className="h-8 w-8 text-purple-500 mr-4" />
+                      )}
                       <div>
-                        <p className="font-medium text-gray-900">{record.patientAddress}</p>
-                        <p className="text-sm text-gray-500">{record.diagnosis}</p>
-                        <p className="text-xs text-gray-400">{record.date}</p>
+                        <p className="font-medium text-gray-900">{item.patient}</p>
+                        <p className="text-sm text-gray-500">{item.type}</p>
+                        <p className="text-xs text-gray-400">{item.date}</p>
                       </div>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
-                        {record.doctorName}
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${item.type === 'Record' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'}`}>
+                        {item.type}
                       </span>
                       <ArrowRightIcon className="h-4 w-4 text-gray-400" />
                     </div>
@@ -390,20 +380,14 @@ const DoctorDashboard = () => {
             ) : (
               <div className="text-center py-12">
                 <DocumentTextIcon className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-2 text-sm font-medium text-gray-900">No records yet</h3>
-                <p className="mt-1 text-sm text-gray-500">
-                  Start by creating your first patient record.
-                </p>
-                <div className="mt-6">
-                  <button className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
-                    <PlusIcon className="h-4 w-4 mr-2" />
-                    Create First Record
-                  </button>
-                </div>
+                <h3 className="mt-2 text-sm font-medium text-gray-900">No recent activity</h3>
+                <p className="mt-1 text-sm text-gray-500">Create a record or prescription to see it here.</p>
               </div>
             )}
           </div>
         </div>
+
+        {/* end */}
       </div>
     </DashboardLayout>
   );

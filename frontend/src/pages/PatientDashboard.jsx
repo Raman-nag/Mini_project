@@ -19,6 +19,7 @@ import { useNavigate } from 'react-router-dom';
 import { getPatientContract } from '../utils/contract';
 import patientService from '../services/patientService';
 import { getProvider } from '../utils/web3';
+import insuranceService from '../services/insuranceService';
 
 const PatientDashboard = () => {
   const navigate = useNavigate();
@@ -30,6 +31,10 @@ const PatientDashboard = () => {
   const [records, setRecords] = useState([]);
   const [prescriptions, setPrescriptions] = useState([]);
   const [accessRequests, setAccessRequests] = useState([]);
+  const [searchRecords, setSearchRecords] = useState('');
+  const [searchRx, setSearchRx] = useState('');
+  const [searchAccess, setSearchAccess] = useState('');
+
 
   useEffect(() => {
     const loadUserData = async () => {
@@ -151,14 +156,6 @@ const PatientDashboard = () => {
       bgColor: 'bg-success-100 dark:bg-success-900/20'
     },
     {
-      name: 'Upcoming Appointments',
-      value: '—',
-      change: '',
-      icon: CalendarIcon,
-      color: 'text-purple-600 dark:text-purple-400',
-      bgColor: 'bg-purple-100 dark:bg-purple-900/20'
-    },
-    {
       name: 'Access Granted',
       value: String(accessRequests.filter(a => a.status === 'granted').length),
       change: 'Healthcare providers',
@@ -241,100 +238,169 @@ const PatientDashboard = () => {
           })}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Quick Actions */}
-          <div className="bg-white rounded-lg shadow">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">Quick Actions</h2>
-            </div>
-            <div className="p-6">
-              <div className="space-y-4">
-                <button onClick={() => navigate('/patient/medical-history')} className="w-full flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                  <div className="bg-blue-100 p-3 rounded-lg mr-4">
-                    <DocumentTextIcon className="h-6 w-6 text-blue-600" />
-                  </div>
-                  <div className="text-left flex-1">
-                    <h3 className="font-medium text-gray-900">View Medical History</h3>
-                    <p className="text-sm text-gray-500">Browse your complete medical records</p>
-                  </div>
-                  <ArrowRightIcon className="h-5 w-5 text-gray-400" />
-                </button>
-
-                <button onClick={() => navigate('/patient/prescriptions')} className="w-full flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                  <div className="bg-green-100 p-3 rounded-lg mr-4">
-                    <ClipboardDocumentListIcon className="h-6 w-6 text-green-600" />
-                  </div>
-                  <div className="text-left flex-1">
-                    <h3 className="font-medium text-gray-900">View Prescriptions</h3>
-                    <p className="text-sm text-gray-500">Check your current medications</p>
-                  </div>
-                  <ArrowRightIcon className="h-5 w-5 text-gray-400" />
-                </button>
-
-                <button onClick={() => navigate('/patient/manage-access')} className="w-full flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                  <div className="bg-purple-100 p-3 rounded-lg mr-4">
-                    <KeyIcon className="h-6 w-6 text-purple-600" />
-                  </div>
-                  <div className="text-left flex-1">
-                    <h3 className="font-medium text-gray-900">Manage Access</h3>
-                    <p className="text-sm text-gray-500">Control who can access your records</p>
-                  </div>
-                  <ArrowRightIcon className="h-5 w-5 text-gray-400" />
-                </button>
-              </div>
+        {/* Quick Actions - single horizontal row */}
+        <div className="bg-white rounded-lg shadow">
+          <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-gray-900">Quick Actions</h2>
+          </div>
+          <div className="p-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <button onClick={() => navigate('/patient/medical-history')} className="w-full flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                <div className="bg-blue-100 p-3 rounded-lg mr-4">
+                  <DocumentTextIcon className="h-6 w-6 text-blue-600" />
+                </div>
+                <div className="text-left flex-1">
+                  <h3 className="font-medium text-gray-900">View Medical History</h3>
+                  <p className="text-sm text-gray-500">Browse your complete medical records</p>
+                </div>
+                <ArrowRightIcon className="h-5 w-5 text-gray-400" />
+              </button>
+              <button onClick={() => navigate('/patient/prescriptions')} className="w-full flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                <div className="bg-green-100 p-3 rounded-lg mr-4">
+                  <ClipboardDocumentListIcon className="h-6 w-6 text-green-600" />
+                </div>
+                <div className="text-left flex-1">
+                  <h3 className="font-medium text-gray-900">View Prescriptions</h3>
+                  <p className="text-sm text-gray-500">Check your current medications</p>
+                </div>
+                <ArrowRightIcon className="h-5 w-5 text-gray-400" />
+              </button>
+              <button onClick={() => navigate('/patient/manage-access')} className="w-full flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                <div className="bg-purple-100 p-3 rounded-lg mr-4">
+                  <KeyIcon className="h-6 w-6 text-purple-600" />
+                </div>
+                <div className="text-left flex-1">
+                  <h3 className="font-medium text-gray-900">Manage Access</h3>
+                  <p className="text-sm text-gray-500">Control who can access your records</p>
+                </div>
+                <ArrowRightIcon className="h-5 w-5 text-gray-400" />
+              </button>
+              <button
+                onClick={() => navigate('/patient/insurance-requests')}
+                className="w-full flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                <div className="bg-amber-100 p-3 rounded-lg mr-4">
+                  <ShieldCheckIcon className="h-6 w-6 text-amber-600" />
+                </div>
+                <div className="text-left flex-1">
+                  <h3 className="font-medium text-gray-900">Request Insurance Review</h3>
+                  <p className="text-sm text-gray-500">Ask insurance admin to review your data</p>
+                </div>
+                <ArrowRightIcon className="h-5 w-5 text-gray-400" />
+              </button>
             </div>
           </div>
+        </div>
 
-          {/* Access Requests */}
-          <div className="bg-white rounded-lg shadow">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">Access Requests</h2>
+        {/* Access Requests */}
+        <div className="bg-white rounded-lg shadow">
+          <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-gray-900">Access Requests</h2>
+            <div className="flex items-center space-x-2">
+              <input
+                value={searchAccess}
+                onChange={(e)=>setSearchAccess(e.target.value)}
+                placeholder="Search by address/status"
+                className="hidden sm:block px-3 py-1.5 text-sm border border-gray-300 rounded-lg"
+              />
+              <button
+                onClick={() => {
+                  if (!walletAddress) return; 
+                  (async () => {
+                    try {
+                      const [rxRes, accessRes] = await Promise.all([
+                        patientService.getMyPrescriptions(walletAddress).catch(() => ({ prescriptions: [] })),
+                        patientService.getAccessList().catch(() => ({ accessList: [] })),
+                      ]);
+                      const rx = Array.isArray(rxRes?.prescriptions) ? rxRes.prescriptions : [];
+                      setPrescriptions(rx
+                        .sort((a,b) => (new Date(b.date)) - (new Date(a.date)))
+                        .map(p => ({ id: p.id, medication: p.prescription || 'Prescription', doctor: p.doctor || '—', startDate: p.date || '—', endDate: '—', status: 'active' }))
+                      );
+                      const access = Array.isArray(accessRes?.accessList) ? accessRes.accessList : [];
+                      setAccessRequests(access.map((a, idx) => ({ id: a.doctorAddress || String(idx), provider: a.doctorAddress, requestedBy: a.doctorAddress, date: a.grantedAt ? new Date(Number(a.grantedAt) * 1000).toLocaleDateString() : '—', status: a.isActive ? 'granted' : 'pending' })));
+                    } catch {}
+                  })();
+                }}
+                className="text-sm px-3 py-1 border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                Refresh
+              </button>
             </div>
-            <div className="p-6">
-              {accessRequests.length > 0 ? (
-                <div className="space-y-4">
-                  {accessRequests.map((request) => (
-                    <div key={request.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                      <div className="flex items-center">
-                        <ShieldCheckIcon className="h-5 w-5 text-gray-400 mr-3" />
-                        <div>
-                          <p className="font-medium text-gray-900">{request.provider}</p>
-                          <p className="text-sm text-gray-500">Requested by {request.requestedBy}</p>
-                          <p className="text-xs text-gray-400">{request.date}</p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          request.status === 'granted' 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-yellow-100 text-yellow-800'
-                        }`}>
-                          {request.status}
-                        </span>
+          </div>
+          <div className="p-6">
+            {accessRequests.length > 0 ? (
+              <div className="space-y-4">
+                {accessRequests.filter(r=>{
+                  const q = searchAccess.toLowerCase();
+                  if(!q) return true;
+                  return String(r.provider||'').toLowerCase().includes(q) || String(r.status||'').toLowerCase().includes(q);
+                }).map((request) => (
+                  <div key={request.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div className="flex items-center">
+                      <ShieldCheckIcon className="h-5 w-5 text-gray-400 mr-3" />
+                      <div>
+                        <p className="font-medium text-gray-900">{request.provider}</p>
+                        <p className="text-sm text-gray-500">Requested by {request.requestedBy}</p>
+                        <p className="text-xs text-gray-400">{request.date}</p>
                       </div>
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <KeyIcon className="mx-auto h-12 w-12 text-gray-400" />
-                  <h3 className="mt-2 text-sm font-medium text-gray-900">No pending requests</h3>
-                  <p className="mt-1 text-sm text-gray-500">All access requests have been processed</p>
-                </div>
-              )}
-            </div>
+                    <div className="text-right">
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                        request.status === 'granted' 
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {request.status}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <KeyIcon className="mx-auto h-12 w-12 text-gray-400" />
+                <h3 className="mt-2 text-sm font-medium text-gray-900">No pending requests</h3>
+                <p className="mt-1 text-sm text-gray-500">All access requests have been processed</p>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Recent Medical Records */}
         <div className="bg-white rounded-lg shadow">
-          <div className="px-6 py-4 border-b border-gray-200">
+          <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
             <h2 className="text-lg font-semibold text-gray-900">Recent Medical Records</h2>
+            <div className="flex items-center space-x-2">
+              <input
+                value={searchRecords}
+                onChange={(e)=>setSearchRecords(e.target.value)}
+                placeholder="Search by doctor/diagnosis"
+                className="hidden sm:block px-3 py-1.5 text-sm border border-gray-300 rounded-lg"
+              />
+              <button 
+                onClick={() => walletAddress && patientService.getMyRecords(walletAddress).then(res => {
+                  const recs = Array.isArray(res?.records) ? res.records : [];
+                  setRecords(recs
+                    .sort((a,b) => b.timestamp - a.timestamp)
+                    .slice(0,5)
+                    .map(r => ({ id: r.id, doctor: r.doctorName || (r.doctorAddress ? `${r.doctorAddress.slice(0,6)}...${r.doctorAddress.slice(-4)}` : '—'), date: r.date, type: r.diagnosis || 'Medical Record', status: r.isActive ? 'completed' : 'pending', hospital: '—', ipfsHash: r.ipfsHash }))
+                  );
+                })} 
+                className="text-sm px-3 py-1 border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                Refresh
+              </button>
+            </div>
           </div>
           <div className="p-6">
             {recentRecords.length > 0 ? (
               <div className="space-y-4">
-                {recentRecords.map((record) => (
+                {recentRecords.filter(r=>{
+                  const q = searchRecords.toLowerCase();
+                  if(!q) return true;
+                  return String(r.doctor||'').toLowerCase().includes(q) || String(r.type||'').toLowerCase().includes(q);
+                }).map((record) => (
                   <div key={record.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
                     <div className="flex items-center">
                       <DocumentTextIcon className="h-8 w-8 text-blue-500 mr-4" />
@@ -371,13 +437,37 @@ const PatientDashboard = () => {
 
         {/* Active Prescriptions */}
         <div className="bg-white rounded-lg shadow">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">Active Prescriptions</h2>
+          <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-gray-900">Recent Prescriptions</h2>
+            <div className="flex items-center space-x-2">
+              <input
+                value={searchRx}
+                onChange={(e)=>setSearchRx(e.target.value)}
+                placeholder="Search by doctor/medication"
+                className="hidden sm:block px-3 py-1.5 text-sm border border-gray-300 rounded-lg"
+              />
+              <button 
+                onClick={() => walletAddress && patientService.getMyPrescriptions(walletAddress).then(rxRes => {
+                  const rx = Array.isArray(rxRes?.prescriptions) ? rxRes.prescriptions : [];
+                  setPrescriptions(rx
+                    .sort((a,b) => (new Date(b.date)) - (new Date(a.date)))
+                    .map(p => ({ id: p.id, medication: p.prescription || 'Prescription', doctor: p.doctor || '—', startDate: p.date || '—', endDate: '—', status: 'active' }))
+                  );
+                })} 
+                className="text-sm px-3 py-1 border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                Refresh
+              </button>
+            </div>
           </div>
           <div className="p-6">
             {activePrescriptions.length > 0 ? (
               <div className="space-y-4">
-                {activePrescriptions.map((prescription) => (
+                {activePrescriptions.filter(p=>{
+                  const q = searchRx.toLowerCase();
+                  if(!q) return true;
+                  return String(p.doctor||'').toLowerCase().includes(q) || String(p.medication||'').toLowerCase().includes(q);
+                }).map((prescription) => (
                   <div key={prescription.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
                     <div className="flex items-center">
                       <ClipboardDocumentListIcon className="h-8 w-8 text-green-500 mr-4" />
