@@ -61,12 +61,25 @@ async function main() {
   console.log('InsuranceManagement deployed to:', insuranceManagementAddress);
   deployments.InsuranceManagement = insuranceManagementAddress;
 
+  // 6. Deploy ResearchOrganizationManagement (references EMRSystem and PatientManagement)
+  console.log('\n6. Deploying ResearchOrganizationManagement...');
+  const ResearchOrganizationManagement = await hre.ethers.getContractFactory('ResearchOrganizationManagement');
+  const researchOrganizationManagement = await ResearchOrganizationManagement.deploy(
+    emrSystemAddress,
+    patientManagementAddress
+  );
+  await researchOrganizationManagement.deployed();
+  const researchOrganizationManagementAddress = researchOrganizationManagement.address;
+  console.log('ResearchOrganizationManagement deployed to:', researchOrganizationManagementAddress);
+  deployments.ResearchOrganizationManagement = researchOrganizationManagementAddress;
+
   console.log('\n=== Deployment Summary ===');
   console.log('DoctorManagement:', doctorManagementAddress);
   console.log('PatientManagement:', patientManagementAddress);
   console.log('HospitalManagement:', hospitalManagementAddress);
   console.log('EMRSystem:', emrSystemAddress);
   console.log('InsuranceManagement:', insuranceManagementAddress);
+  console.log('ResearchOrganizationManagement:', researchOrganizationManagementAddress);
   console.log('==========================\n');
 
   // Save deployment addresses to file
@@ -95,7 +108,7 @@ async function main() {
   }
 
   const artifactsPath = path.join(__dirname, '..', 'artifacts', 'contracts');
-  const contractNames = ['DoctorManagement', 'PatientManagement', 'HospitalManagement', 'EMRSystem', 'InsuranceManagement'];
+  const contractNames = ['DoctorManagement', 'PatientManagement', 'HospitalManagement', 'EMRSystem', 'InsuranceManagement', 'ResearchOrganizationManagement'];
   
   contractNames.forEach(name => {
     const artifactPath = path.join(artifactsPath, `${name}.sol`, `${name}.json`);

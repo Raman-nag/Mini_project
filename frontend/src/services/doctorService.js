@@ -143,6 +143,18 @@ class DoctorService {
 
       const createdRecord = await contract.getRecordById(recordId);
       
+      // Best-effort: update patient's diseases list for research summaries
+      try {
+        const diseaseCategory = (recordData && (recordData.diseaseCategory || recordData.diagnosis)) || '';
+        if (diseaseCategory && diseaseCategory.trim().length > 0) {
+          const patientContract = await getPatientContract();
+          const txDisease = await patientContract.addDiseaseForPatient(patientAddress, diseaseCategory);
+          await sendTx(Promise.resolve(txDisease));
+        }
+      } catch (helperErr) {
+        console.warn('Doctor Service - addDiseaseForPatient helper failed (non-fatal):', helperErr);
+      }
+
       return {
         success: true,
         record: this.formatRecord(createdRecord, recordId),

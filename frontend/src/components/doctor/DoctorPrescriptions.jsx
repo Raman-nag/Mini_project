@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ClipboardDocumentListIcon, PencilSquareIcon, TrashIcon, CalendarIcon, UserIcon } from '@heroicons/react/24/outline';
 import Card from '../common/Card';
 import Modal from '../common/Modal';
@@ -6,6 +6,7 @@ import Button from '../common/Button';
 import doctorService from '../../services/doctorService';
 import { getProvider } from '../../utils/web3';
 import { useToast } from '../../contexts/ToastContext';
+import { DISEASE_CATEGORIES } from '../../data/diseaseCategories';
 
 const parseItems = (prescription) => {
   try {
@@ -24,6 +25,7 @@ const DoctorPrescriptions = () => {
   const [editing, setEditing] = useState(null); // record object
   const [form, setForm] = useState({ title: '', notes: '', items: [] });
   const [saving, setSaving] = useState(false);
+  const [filters, setFilters] = useState({ disease: '', patient: '', from: '', to: '' });
 
   const load = async () => {
     setLoading(true);
@@ -54,6 +56,53 @@ const DoctorPrescriptions = () => {
   };
 
   useEffect(() => { load(); }, []);
+
+  const getDiseaseCategory = (diagnosis) => {
+    if (!diagnosis) return '';
+    const text = String(diagnosis);
+    const parts = text.split(' - ');
+    const head = parts[0]?.trim();
+    const match = DISEASE_CATEGORIES.find(
+      (cat) => cat.toLowerCase() === head.toLowerCase()
+    );
+    return match || head;
+  };
+
+  const filteredList = useMemo(() => {
+    let rows = [...list];
+
+    if (filters.disease) {
+      const target = filters.disease.toLowerCase();
+      rows = rows.filter((r) => getDiseaseCategory(r.diagnosis).toLowerCase() === target);
+    }
+
+    if (filters.patient) {
+      const q = filters.patient.toLowerCase();
+      rows = rows.filter((r) =>
+        (r.patientAddress || '').toLowerCase().includes(q)
+      );
+    }
+
+    if (filters.from || filters.to) {
+      rows = rows.filter((r) => {
+        if (!r.date) return false;
+        const d = new Date(r.date);
+        if (Number.isNaN(d.getTime())) return false;
+        if (filters.from) {
+          const from = new Date(filters.from);
+          if (d < from) return false;
+        }
+        if (filters.to) {
+          const to = new Date(filters.to);
+          to.setHours(23, 59, 59, 999);
+          if (d > to) return false;
+        }
+        return true;
+      });
+    }
+
+    return rows;
+  }, [list, filters]);
 
   const openEdit = (rec) => {
     if (!rec.isActive) {
@@ -109,7 +158,56 @@ const DoctorPrescriptions = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-gray-900 dark:text-white">My Prescriptions</h2>
+        <div className="text-xs text-gray-500">Doctor: auto-detected from connected wallet</div>
       </div>
+
+      <Card variant="outlined">
+        <Card.Body>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs">
+            <div>
+              <div className="mb-1 font-medium text-gray-700">Disease Category</div>
+              <select
+                value={filters.disease}
+                onChange={(e) => setFilters((prev) => ({ ...prev, disease: e.target.value }))}
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-purple-400 hover:border-purple-300 bg-white"
+              >
+                <option value="">All</option>
+                {DISEASE_CATEGORIES.map((cat) => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <div className="mb-1 font-medium text-gray-700">Patient (address)</div>
+              <input
+                type="text"
+                value={filters.patient}
+                onChange={(e) => setFilters((prev) => ({ ...prev, patient: e.target.value }))}
+                placeholder="Search by wallet..."
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-purple-400 hover:border-purple-300 bg-white"
+              />
+            </div>
+            <div>
+              <div className="mb-1 font-medium text-gray-700">From date</div>
+              <input
+                type="date"
+                value={filters.from}
+                onChange={(e) => setFilters((prev) => ({ ...prev, from: e.target.value }))}
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-purple-400 hover:border-purple-300 bg-white"
+              />
+            </div>
+            <div>
+              <div className="mb-1 font-medium text-gray-700">To date</div>
+              <input
+                type="date"
+                value={filters.to}
+                onChange={(e) => setFilters((prev) => ({ ...prev, to: e.target.value }))}
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-purple-400 hover:border-purple-300 bg-white"
+              />
+            </div>
+          </div>
+        </Card.Body>
+      </Card>
 
       {loading ? (
         <Card variant="outlined" className="text-center py-12">
@@ -129,8 +227,12 @@ const DoctorPrescriptions = () => {
         </Card>
       ) : (
         <div className="space-y-4">
-          {list.map((r) => (
-            <Card key={r.id} variant="elevated" className="p-4">
+          {filteredList.map((r) => (
+            <Card
+              key={r.id}
+              variant="elevated"
+              className="p-4 transition-all hover:shadow-lg hover:-translate-y-0.5"
+            >
               <div className="flex items-start justify-between">
                 <div>
                   <div className="flex items-center space-x-4 text-sm text-gray-600">

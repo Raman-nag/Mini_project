@@ -27,8 +27,8 @@ const Home = () => {
     },
     {
       icon: LockClosedIcon,
-      title: 'HIPAA Compliant',
-      description: 'Fully compliant with healthcare regulations and privacy standards.',
+      title: 'Role-Based Access',
+      description: 'Fine‑grained permissions for patients, doctors, and researchers to keep data secure and organized.',
       // TODO: Add compliance verification from blockchain
       // highlight: 'Fully Certified'
     },
@@ -80,7 +80,7 @@ const Home = () => {
       description: 'Trusted partners' },
     { label: 'Patients Served', value: '10K+', // TODO: Get from blockchain
       description: 'Happy patients' },
-    { label: 'Uptime', value: '99.9%', // TODO: Get from monitoring
+    { label: 'Research organizations', value: '200+', // TODO: Get from monitoring
       description: 'Reliable service' }
   ];
 
@@ -181,15 +181,15 @@ const Home = () => {
 
                   {/* Recent Activity */}
                   <div className="space-y-3">
-                    <h4 className="font-medium text-slate-900 dark:text-slate-100">Recent Activity</h4>
+                    <h4 className="font-medium text-slate-900 dark:text-slate-100">Why Choose Us?</h4>
                     <div className="space-y-2">
                       <div className="flex items-center space-x-3 p-2 bg-green-50 dark:bg-green-900/20 rounded-lg">
                         <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                        <span className="text-sm text-slate-700 dark:text-slate-300">New record created</span>
+                        <span className="text-sm text-slate-700 dark:text-slate-300">Instant access across hospitals</span>
                       </div>
                       <div className="flex items-center space-x-3 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                         <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                        <span className="text-sm text-slate-700 dark:text-slate-300">Access granted to Dr. Ramesh</span>
+                        <span className="text-sm text-slate-700 dark:text-slate-300">Tamper-proof treatment history</span>
                       </div>
                     </div>
                   </div>

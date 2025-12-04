@@ -1,0 +1,831 @@
+[
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_emrSystem",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_patientRegistry",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "groupKey",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "patient",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "diseaseCategory",
+        "type": "string"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "requestedAt",
+        "type": "uint256"
+      }
+    ],
+    "name": "GroupAccessRequested",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "groupKey",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "patient",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "enum ResearchOrganizationManagement.ConsentStatus",
+        "name": "status",
+        "type": "uint8"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "respondedAt",
+        "type": "uint256"
+      }
+    ],
+    "name": "GroupAccessResponded",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "groupKey",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "affectedCount",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "revokedAt",
+        "type": "uint256"
+      }
+    ],
+    "name": "GroupAccessRevokedBulk",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "groupKey",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "org",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "name",
+        "type": "string"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "groupIdHuman",
+        "type": "string"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "purpose",
+        "type": "string"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "diseaseCategory",
+        "type": "string"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "createdAt",
+        "type": "uint256"
+      }
+    ],
+    "name": "GroupCreated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "groupKey",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "patientCount",
+        "type": "uint256"
+      }
+    ],
+    "name": "GroupPatientsLinked",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "groupKey",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "org",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "newCount",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "timestamp",
+        "type": "uint256"
+      }
+    ],
+    "name": "WorkCompleted",
+    "type": "event"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "groupKey",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "address[]",
+        "name": "patients",
+        "type": "address[]"
+      }
+    ],
+    "name": "addPatientsToGroup",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "groupKey",
+        "type": "bytes32"
+      }
+    ],
+    "name": "batchRequestAccess",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "name",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "groupIdHuman",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "purpose",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "leaderName",
+        "type": "string"
+      },
+      {
+        "internalType": "address",
+        "name": "leaderWallet",
+        "type": "address"
+      },
+      {
+        "internalType": "string",
+        "name": "diseaseCategory",
+        "type": "string"
+      },
+      {
+        "internalType": "address[]",
+        "name": "patients",
+        "type": "address[]"
+      }
+    ],
+    "name": "createGroup",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "groupKey",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "emrSystem",
+    "outputs": [
+      {
+        "internalType": "contract IEMRSystemResearch",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getAllGroups",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "bytes32",
+            "name": "id",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "address",
+            "name": "org",
+            "type": "address"
+          },
+          {
+            "internalType": "string",
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "groupIdHuman",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "purpose",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "leaderName",
+            "type": "string"
+          },
+          {
+            "internalType": "address",
+            "name": "leaderWallet",
+            "type": "address"
+          },
+          {
+            "internalType": "string",
+            "name": "diseaseCategory",
+            "type": "string"
+          },
+          {
+            "internalType": "uint256",
+            "name": "createdAt",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "totalPatients",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "pendingCount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "grantedCount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "rejectedCount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "revokedCount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "worksCompleted",
+            "type": "uint256"
+          },
+          {
+            "internalType": "bool",
+            "name": "active",
+            "type": "bool"
+          }
+        ],
+        "internalType": "struct ResearchOrganizationManagement.Group[]",
+        "name": "result",
+        "type": "tuple[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getGlobalAnalytics",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "groupsCount",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "patientsCount",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "worksCount",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "groupKey",
+        "type": "bytes32"
+      }
+    ],
+    "name": "getGroup",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "bytes32",
+            "name": "id",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "address",
+            "name": "org",
+            "type": "address"
+          },
+          {
+            "internalType": "string",
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "groupIdHuman",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "purpose",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "leaderName",
+            "type": "string"
+          },
+          {
+            "internalType": "address",
+            "name": "leaderWallet",
+            "type": "address"
+          },
+          {
+            "internalType": "string",
+            "name": "diseaseCategory",
+            "type": "string"
+          },
+          {
+            "internalType": "uint256",
+            "name": "createdAt",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "totalPatients",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "pendingCount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "grantedCount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "rejectedCount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "revokedCount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "worksCompleted",
+            "type": "uint256"
+          },
+          {
+            "internalType": "bool",
+            "name": "active",
+            "type": "bool"
+          }
+        ],
+        "internalType": "struct ResearchOrganizationManagement.Group",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "groupKey",
+        "type": "bytes32"
+      }
+    ],
+    "name": "getGroupCounts",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "total",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "pending",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "granted",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "rejected",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "revoked",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "groupKey",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "address[]",
+        "name": "patients",
+        "type": "address[]"
+      }
+    ],
+    "name": "getGroupPatientStatuses",
+    "outputs": [
+      {
+        "internalType": "enum ResearchOrganizationManagement.ConsentStatus[]",
+        "name": "statuses",
+        "type": "uint8[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "groupKey",
+        "type": "bytes32"
+      }
+    ],
+    "name": "getGroupPatients",
+    "outputs": [
+      {
+        "internalType": "address[]",
+        "name": "",
+        "type": "address[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "groupIds",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "name": "groupPatientStatus",
+    "outputs": [
+      {
+        "internalType": "enum ResearchOrganizationManagement.ConsentStatus",
+        "name": "",
+        "type": "uint8"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "name": "groups",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "id",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "address",
+        "name": "org",
+        "type": "address"
+      },
+      {
+        "internalType": "string",
+        "name": "name",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "groupIdHuman",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "purpose",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "leaderName",
+        "type": "string"
+      },
+      {
+        "internalType": "address",
+        "name": "leaderWallet",
+        "type": "address"
+      },
+      {
+        "internalType": "string",
+        "name": "diseaseCategory",
+        "type": "string"
+      },
+      {
+        "internalType": "uint256",
+        "name": "createdAt",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "totalPatients",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "pendingCount",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "grantedCount",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "rejectedCount",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "revokedCount",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "worksCompleted",
+        "type": "uint256"
+      },
+      {
+        "internalType": "bool",
+        "name": "active",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "groupKey",
+        "type": "bytes32"
+      }
+    ],
+    "name": "markWorkCompleted",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "patientRegistry",
+    "outputs": [
+      {
+        "internalType": "contract IPatientRegistry",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "groupKey",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bool",
+        "name": "grant",
+        "type": "bool"
+      }
+    ],
+    "name": "respondToGroupRequest",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "groupKey",
+        "type": "bytes32"
+      }
+    ],
+    "name": "revokeGroupRequests",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "totalGroups",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "totalPatientsInGroups",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "totalWorksCompleted",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  }
+]

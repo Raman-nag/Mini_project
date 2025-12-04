@@ -13,6 +13,7 @@ import Button from '../common/Button';
 import doctorService from '../../services/doctorService';
 import { uploadMultipleToIPFS } from '../../utils/ipfs';
 import { useToast } from '../../contexts/ToastContext';
+import { DISEASE_CATEGORIES } from '../../data/diseaseCategories';
 
 const CreateRecord = ({ onRecordCreated, onCancel }) => {
   const { showSuccess, showError, showInfo, showLoading, dismiss } = useToast();
@@ -20,7 +21,7 @@ const CreateRecord = ({ onRecordCreated, onCancel }) => {
     patientWalletAddress: '',
     diagnosis: '',
     symptoms: '',
-    prescriptionDetails: '',
+    diseaseCategory: '',
     treatmentPlan: '',
     visitDate: new Date().toISOString().split('T')[0],
     recordType: 'Consultation',
@@ -62,8 +63,8 @@ const CreateRecord = ({ onRecordCreated, onCancel }) => {
       newErrors.symptoms = 'Symptoms are required';
     }
 
-    if (!formData.prescriptionDetails.trim()) {
-      newErrors.prescriptionDetails = 'Prescription details are required';
+    if (!formData.diseaseCategory.trim()) {
+      newErrors.diseaseCategory = 'Disease category is required';
     }
 
     if (!formData.treatmentPlan.trim()) {
@@ -172,9 +173,9 @@ const CreateRecord = ({ onRecordCreated, onCancel }) => {
 
       // Prepare record data
       const recordData = {
-        diagnosis: formData.diagnosis,
+        diagnosis: `${formData.diseaseCategory} - ${formData.diagnosis}`,
         symptoms: formData.symptoms.split(',').map(s => s.trim()).filter(s => s),
-        prescription: formData.prescriptionDetails,
+        prescription: '',
         treatmentPlan: formData.treatmentPlan,
         treatment: formData.treatmentPlan,
         doctorNotes: formData.notes || '',
@@ -196,7 +197,7 @@ const CreateRecord = ({ onRecordCreated, onCancel }) => {
           patientWalletAddress: '',
           diagnosis: '',
           symptoms: '',
-          prescriptionDetails: '',
+          diseaseCategory: '',
           treatmentPlan: '',
           visitDate: new Date().toISOString().split('T')[0],
           recordType: 'Consultation',
@@ -370,6 +371,14 @@ const CreateRecord = ({ onRecordCreated, onCancel }) => {
           </h4>
           
           <InputField
+            name="diseaseCategory"
+            label="Disease Category"
+            placeholder="Select disease category"
+            options={DISEASE_CATEGORIES}
+            required
+          />
+
+          <InputField
             name="diagnosis"
             label="Diagnosis"
             placeholder="Enter primary diagnosis..."
@@ -382,16 +391,6 @@ const CreateRecord = ({ onRecordCreated, onCancel }) => {
             name="symptoms"
             label="Symptoms"
             placeholder="List all symptoms observed..."
-            multiline
-            rows={4}
-            required
-          />
-
-          <InputField
-            name="prescriptionDetails"
-            label="Prescription Details"
-            placeholder="Medications, dosages, and instructions..."
-            icon={ClipboardDocumentListIcon}
             multiline
             rows={4}
             required

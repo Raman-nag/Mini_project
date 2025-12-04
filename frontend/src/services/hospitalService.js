@@ -156,6 +156,7 @@ class HospitalService {
       const { getSigner } = await import('../utils/web3');
       const signer = await getSigner();
       const hospitalAddress = await signer.getAddress();
+      console.debug('[HospitalService:getPatients] hospitalAddress', hospitalAddress);
 
       // Build patient set from recent records created by this hospital's doctors
       const doctorContract = await getDoctorContract();
@@ -163,12 +164,24 @@ class HospitalService {
 
       // Get hospital doctors
       let doctors = [];
-      try { doctors = await hospital.getHospitalDoctors(hospitalAddress); } catch { doctors = []; }
+      try {
+        doctors = await hospital.getHospitalDoctors(hospitalAddress);
+      } catch (err) {
+        console.error('[HospitalService:getPatients] getHospitalDoctors failed', err);
+        doctors = [];
+      }
       const doctorSet = new Set((doctors || []).map(a => (a || '').toLowerCase()));
+      console.debug('[HospitalService:getPatients] doctors for hospital', doctors);
 
       // Scan records for patients treated by hospital doctors
       let recordCount = 0;
-      try { recordCount = Number(await doctorContract.recordCount()); } catch { recordCount = 0; }
+      try {
+        recordCount = Number(await doctorContract.recordCount());
+      } catch (err) {
+        console.error('[HospitalService:getPatients] recordCount failed', err);
+        recordCount = 0;
+      }
+      console.debug('[HospitalService:getPatients] total recordCount', recordCount);
       const seenPatients = new Map(); // patient => lastRecordTs and lastDoctor
       const scanLimit = Math.min(recordCount, 2000);
       for (let i = recordCount - 1; i >= 0 && (recordCount - 1 - i) < scanLimit; i--) {
@@ -186,6 +199,7 @@ class HospitalService {
       }
 
       const patientAddresses = Array.from(seenPatients.keys());
+      console.debug('[HospitalService:getPatients] derived patient addresses', patientAddresses);
       const patients = await Promise.all(patientAddresses.map(async (address) => {
         try {
           const patient = await patientContract.patients(address);
@@ -215,9 +229,33 @@ class HospitalService {
       }));
 
       const validPatients = patients.filter(p => p !== null);
+      console.debug('[HospitalService:getPatients] final patients list', validPatients);
       return { success: true, patients: validPatients, count: validPatients.length };
     } catch (error) {
       console.error('Hospital Service - Get Patients Error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Lightweight patient summaries for research dashboards.
+   * Uses PatientManagement.getAllPatientsSummary and only exposes
+   * walletAddress, name, and diseaseType.
+   */
+  async getPatientsSummary() {
+    try {
+      const patient = await getPatientContract();
+      const raw = await patient.getAllPatientsSummary();
+      // raw is an array of structs: { walletAddress, name, diseaseType }
+      const summaries = raw.map((p) => ({
+        walletAddress: p.walletAddress,
+        name: p.name,
+        diseases: Array.isArray(p.diseases) ? p.diseases : [],
+      }));
+      console.debug('[HospitalService:getPatientsSummary] mapped', summaries);
+      return summaries;
+    } catch (error) {
+      console.error('Hospital Service - Get Patients Summary Error:', error);
       throw error;
     }
   }

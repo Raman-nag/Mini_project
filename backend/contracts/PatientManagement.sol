@@ -18,6 +18,13 @@ contract PatientManagement is Ownable, ReentrancyGuard {
         address walletAddress;
         uint256 registeredDate;
         bool isActive;
+        string[] diseases;
+    }
+
+    struct PatientSummary {
+        address walletAddress;
+        string name;
+        string[] diseases;
     }
 
     struct AccessPermission {
@@ -34,6 +41,7 @@ contract PatientManagement is Ownable, ReentrancyGuard {
     mapping(address => mapping(address => bool)) public pendingRequests;
     // Non-compact list of doctors who requested for a patient (UI can filter by pendingRequests flag)
     mapping(address => address[]) private pendingDoctors;
+    address[] private patientAddresses;
     
     // Interface references
     DoctorManagement public doctorManagement;
@@ -100,10 +108,12 @@ contract PatientManagement is Ownable, ReentrancyGuard {
             bloodGroup: bloodGroup,
             walletAddress: msg.sender,
             registeredDate: block.timestamp,
-            isActive: true
+            isActive: true,
+            diseases: new string[](0)
         });
 
         registeredPatients[msg.sender] = true;
+        patientAddresses.push(msg.sender);
         emit PatientRegistered(msg.sender, name);
     }
 
@@ -265,5 +275,45 @@ contract PatientManagement is Ownable, ReentrancyGuard {
     {
         patients[msg.sender].isActive = false;
         emit PatientDeactivated(msg.sender);
+    }
+
+    /**
+     * @dev Append a disease category to a patient's diseases list if not already present.
+     * This is intended to be called after doctors create or update medical records.
+     */
+    function addDiseaseForPatient(address patientAddr, string memory disease)
+        external
+    {
+        require(registeredPatients[patientAddr], "Not registered");
+        bytes memory diseaseBytes = bytes(disease);
+        require(diseaseBytes.length > 0, "Disease required");
+
+        string[] storage arr = patients[patientAddr].diseases;
+        bytes32 newHash = keccak256(diseaseBytes);
+        for (uint i = 0; i < arr.length; i++) {
+            if (keccak256(bytes(arr[i])) == newHash) {
+                return;
+            }
+        }
+        arr.push(disease);
+    }
+
+    function getAllPatientsSummary() 
+        external 
+        view 
+        returns (PatientSummary[] memory) 
+    {
+        uint256 len = patientAddresses.length;
+        PatientSummary[] memory result = new PatientSummary[](len);
+        for (uint256 i = 0; i < len; i++) {
+            address addr = patientAddresses[i];
+            Patient storage p = patients[addr];
+            result[i] = PatientSummary({
+                walletAddress: p.walletAddress,
+                name: p.name,
+                diseases: p.diseases
+            });
+        }
+        return result;
     }
 }

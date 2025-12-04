@@ -6,6 +6,7 @@ import PatientManagementABI from './abis/PatientManagement.json';
 import HospitalManagementABI from './abis/HospitalManagement.json';
 import EMRSystemABI from './abis/EMRSystem.json';
 import InsuranceManagementABI from './abis/InsuranceManagement.json';
+import ResearchOrganizationManagementABI from './abis/ResearchOrganizationManagement.json';
 
 // Default network key should be available early
 export const DEFAULT_NETWORK_KEY = 'localhost';
@@ -34,6 +35,7 @@ const ADDRESSES = {
   HospitalManagement: fromEnv('VITE_HOSPITAL_MANAGEMENT_ADDRESS'),
   PatientManagement: fromEnv('VITE_PATIENT_MANAGEMENT_ADDRESS'),
   InsuranceManagement: fromEnv('VITE_INSURANCE_MANAGEMENT_ADDRESS'),
+  ResearchOrganizationManagement: fromEnv('VITE_RESEARCH_ORG_MANAGEMENT_ADDRESS'),
 };
 
 // Constant admin account (should be first Ganache account). Configure via env.
@@ -72,6 +74,7 @@ export const CONTRACT_ABIS = {
   HospitalManagement: HospitalManagementABI,
   PatientManagement: PatientManagementABI,
   InsuranceManagement: InsuranceManagementABI,
+  ResearchOrganizationManagement: ResearchOrganizationManagementABI,
 };
 
 // Debug logs for addresses and networks loaded

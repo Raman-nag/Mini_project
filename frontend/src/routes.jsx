@@ -32,12 +32,18 @@ import MedicalHistoryPage from "./pages/patient/MedicalHistoryPage";
 import PrescriptionsPage from "./pages/patient/PrescriptionsPage";
 import GrantAccessPage from "./pages/patient/GrantAccessPage";
 import InsuranceRequestsPage from "./pages/patient/InsuranceRequestsPage";
+import ResearchRequestsPage from "./pages/patient/ResearchRequestsPage";
 // Insurance Pages
 import InsuranceDashboard from "./pages/insurance/Dashboard";
 import InsuranceCheckPatientData from "./pages/insurance/CheckPatientData";
 import InsuranceGranted from "./pages/insurance/GrantedPatients";
 import InsuranceRejected from "./pages/insurance/RejectedPatients";
 import InsuranceAnalytics from "./pages/insurance/Analytics";
+// Research organization pages
+import ResearchDashboard from "./pages/research/Dashboard";
+import ResearchCreateGroup from "./pages/research/CreateGroup";
+import ResearchViewGroups from "./pages/research/ViewGroups";
+import ResearchAnalytics from "./pages/research/Analytics";
 
 export default function AppRouter() {
   return (
@@ -77,6 +83,7 @@ export default function AppRouter() {
       <Route path="/patient/prescriptions" element={<PrescriptionsPage />} />
       <Route path="/patient/manage-access" element={<GrantAccessPage />} />
       <Route path="/patient/insurance-requests" element={<InsuranceRequestsPage />} />
+      <Route path="/patient/research-requests" element={<ResearchRequestsPage />} />
 
       {/* Insurance Routes */}
       <Route path="/insurance/dashboard" element={<InsuranceDashboard />} />
@@ -84,6 +91,12 @@ export default function AppRouter() {
       <Route path="/insurance/granted" element={<InsuranceGranted />} />
       <Route path="/insurance/rejected" element={<InsuranceRejected />} />
       <Route path="/insurance/analytics" element={<InsuranceAnalytics />} />
+
+      {/* Research Organization Routes */}
+      <Route path="/research/dashboard" element={<ResearchDashboard />} />
+      <Route path="/research/groups/create" element={<ResearchCreateGroup />} />
+      <Route path="/research/groups" element={<ResearchViewGroups />} />
+      <Route path="/research/analytics" element={<ResearchAnalytics />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
     </ToastProvider>

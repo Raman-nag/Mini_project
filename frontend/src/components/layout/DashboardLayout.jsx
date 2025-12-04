@@ -59,7 +59,9 @@ const DashboardLayout = ({ children, userRole, userProfile, walletAddress, netwo
           ...baseItems,
           { name: 'My Patients', href: '/doctor/my-patients', icon: 'HeartIcon' },
           { name: 'Get Patient Details', href: '/doctor/get-patient-details', icon: 'UserCircleIcon' },
+          { name: 'Create Record', href: '/doctor/create-record', icon: 'CalendarIcon' },
           { name: 'Records', href: '/doctor/records', icon: 'DocumentTextIcon' },
+          { name: 'Prescriptions', href: '/doctor/prescriptions', icon: 'ClipboardDocumentListIcon' },
           { name: 'Analytics', href: '/doctor/analytics', icon: 'ChartBarIcon' }
         ];
       case 'patient':
@@ -69,6 +71,7 @@ const DashboardLayout = ({ children, userRole, userProfile, walletAddress, netwo
           { name: 'Prescriptions', href: '/patient/prescriptions', icon: 'ClipboardDocumentListIcon' },
           { name: 'Grant Access', href: '/patient/manage-access', icon: 'KeyIcon' },
           { name: 'Insurance Requests', href: '/patient/insurance-requests', icon: 'ShieldCheckIcon' },
+          { name: 'Research Requests', href: '/patient/research-requests', icon: 'ClipboardDocumentListIcon' },
         ];
       case 'insurance':
         return [
@@ -77,6 +80,13 @@ const DashboardLayout = ({ children, userRole, userProfile, walletAddress, netwo
           { name: 'View Granted Patients', href: '/insurance/granted', icon: 'UserGroupIcon' },
           { name: 'View Rejected Patients', href: '/insurance/rejected', icon: 'UserGroupIcon' },
           { name: 'Analytics', href: '/insurance/analytics', icon: 'ChartBarIcon' }
+        ];
+      case 'research':
+        return [
+          ...baseItems,
+          { name: 'Create new group', href: '/research/groups/create', icon: 'PlusIcon' },
+          { name: 'View groups', href: '/research/groups', icon: 'UserGroupIcon' },
+          { name: 'Analytics', href: '/research/analytics', icon: 'ChartBarIcon' }
         ];
       default:
         return baseItems;
